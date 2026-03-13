@@ -5,7 +5,13 @@ on:
   push:
     paths-ignore:
       - '**/README.md'
+      - 'LICENSE.txt'
+      - 'docs/**'
   workflow_dispatch:
+
+concurrency:
+  group: build-wasm-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-wasm-file:
@@ -59,9 +65,27 @@ jobs:
           sudo apt-get update -yq
           sudo apt-get install -y libegl1
 
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-wasm-${{ github.sha }}
+          restore-keys: |
+            ccache-wasm-
+
+      - name: Install and configure ccache
+        run: |
+          sudo apt-get install -y ccache
+          ccache --max-size=500M
+          ccache --zero-stats
+          echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
+
       - name: Build WebAssembly
         run: |
           bash scripts/build-wasm.sh
+
+      - name: Show ccache stats
+        run: ccache --show-stats
 
       - name: Upload ZIP file
         uses: actions/upload-artifact@v4
@@ -69,6 +93,7 @@ jobs:
           name: venus-webassembly
           path: build-wasm_files_to_copy
           retention-days: 5
+          compression-level: 1
 
       - name: Release - ZIP wasm files
         if: startsWith(github.ref, 'refs/tags/')
