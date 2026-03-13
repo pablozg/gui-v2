@@ -71,40 +71,46 @@ Column {
 		maximumPixelSize: Theme.font_briefPage_battery_percentage_maximumPixelSize
 	}
 
-	Loader {
+	// Always show battery V, A and W below the percentage
+	Column {
 		width: parent.width
-		height: active ? implicitHeight : 0
-		active: root.showFullDetails && !root._useTemperature
+		visible: !root._useTemperature
 
-		sourceComponent: Column {
-			Row {
-				anchors.horizontalCenter: parent.horizontalCenter
-				spacing: Theme.geometry_briefPage_centerGauge_centerText_horizontalSpacing
+		Row {
+			anchors.horizontalCenter: parent.horizontalCenter
+			spacing: Theme.geometry_briefPage_centerGauge_centerText_horizontalSpacing
 
-				QuantityLabel {
-					valueColor: Theme.color_briefPage_battery_value_text_color
-					unitColor: Theme.color_briefPage_battery_unit_text_color
-					font.pixelSize: Theme.font_briefPage_battery_voltage_pixelSize
-					unit: VenusOS.Units_Volt_DC
-					value: Global.system.battery.voltage
-				}
-
-				ElectricalQuantityLabel {
-					sourceType: VenusOS.ElectricalQuantity_Source_Dc
-					dataObject: Global.system.battery
-					valueColor: Theme.color_briefPage_battery_value_text_color
-					unitColor: Theme.color_briefPage_battery_unit_text_color
-					font.pixelSize: Theme.font_briefPage_battery_voltage_pixelSize
-				}
+			QuantityLabel {
+				valueColor: Theme.color_briefPage_battery_value_text_color
+				unitColor: Theme.color_briefPage_battery_unit_text_color
+				font.pixelSize: Theme.font_briefPage_battery_voltage_pixelSize
+				unit: VenusOS.Units_Volt_DC
+				value: Global.system.battery.voltage
 			}
 
-			Label {
-				anchors.horizontalCenter: parent.horizontalCenter
-				font.pixelSize: Theme.font_briefPage_battery_timeToGo_pixelSize
-				color: Theme.color_briefPage_battery_value_text_color
-				text: Utils.formatBatteryTimeToGo(Global.system.battery.timeToGo, VenusOS.Battery_TimeToGo_LongFormat)
-				visible: text.length > 0
+			QuantityLabel {
+				valueColor: Theme.color_briefPage_battery_value_text_color
+				unitColor: Theme.color_briefPage_battery_unit_text_color
+				font.pixelSize: Theme.font_briefPage_battery_voltage_pixelSize
+				unit: VenusOS.Units_Amp
+				value: Global.system.battery.current
 			}
+
+			QuantityLabel {
+				valueColor: Theme.color_briefPage_battery_value_text_color
+				unitColor: Theme.color_briefPage_battery_unit_text_color
+				font.pixelSize: Theme.font_briefPage_battery_voltage_pixelSize
+				unit: VenusOS.Units_Watt
+				value: Global.system.battery.power
+			}
+		}
+
+		Label {
+			anchors.horizontalCenter: parent.horizontalCenter
+			font.pixelSize: Theme.font_briefPage_battery_timeToGo_pixelSize
+			color: Theme.color_briefPage_battery_value_text_color
+			text: Utils.formatBatteryTimeToGo(Global.system.battery.timeToGo, VenusOS.Battery_TimeToGo_LongFormat)
+			visible: root.showFullDetails && text.length > 0
 		}
 	}
 }
