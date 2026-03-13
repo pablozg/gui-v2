@@ -19,6 +19,8 @@ AcWidget {
 	quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_AcInputOnly
 	quantityLabel.dataObject: inputOperational ? input : null
 	quantityLabel.leftPadding: acInputDirectionIcon.visible ? (acInputDirectionIcon.width + Theme.geometry_acInputDirectionIcon_rightMargin) : 0
+	overviewExtraDataObject: inputOperational ? input : null
+	overviewExtraIsAc: true
 	phaseCount: inputOperational ? input.phases.count : 0
 	enabled: !!inputInfo
 	extraContentLoader.sourceComponent: ThreePhaseDisplay {

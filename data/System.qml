@@ -65,6 +65,8 @@ QtObject {
 		readonly property real power: Units.sumRealNumbers(acPower, dcPower)
 		readonly property real acPower: _pvMonitor.totalPower
 		readonly property real dcPower: _dcPvPower.valid ? _dcPvPower.value : NaN
+		readonly property real current: _dcPvCurrent.valid ? _dcPvCurrent.value : NaN
+		readonly property real voltage: NaN // Solar DC voltage is not aggregated by systemcalc
 		readonly property real maximumPower: _maximumPower.valid ? _maximumPower.value : NaN
 
 		readonly property VeQuickItem _maximumPower: VeQuickItem {

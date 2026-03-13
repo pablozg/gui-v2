@@ -28,6 +28,8 @@ OverviewWidget {
 	type: VenusOS.OverviewWidget_Type_Solar
 	enabled: true
 	quantityLabel.dataObject: Global.system.solar
+	overviewExtraDataObject: Global.system.solar
+	overviewExtraIsAc: false
 	preferredSize: extraContentLoader.status !== Loader.Null
 			? VenusOS.OverviewWidget_PreferredSize_PreferLarge
 			: VenusOS.OverviewWidget_PreferredSize_Any

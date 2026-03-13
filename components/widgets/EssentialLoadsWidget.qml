@@ -14,6 +14,8 @@ AcWidget {
 	icon.source: "qrc:/images/icon_CL_24.svg"
 	type: VenusOS.OverviewWidget_Type_EssentialLoads
 	quantityLabel.dataObject: Global.system.load.acOut
+	overviewExtraDataObject: Global.system.load.acOut
+	overviewExtraIsAc: true
 	phaseCount: Global.system.load.acOut.phases.count
 	extraContentLoader.sourceComponent: ThreePhaseDisplay {
 		model: Global.system.load.acOut.phases

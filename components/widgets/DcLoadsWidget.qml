@@ -17,6 +17,8 @@ OverviewWidget {
 
 	quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Dc
 	quantityLabel.dataObject: Global.system.dc
+	overviewExtraDataObject: Global.system.dc
+	overviewExtraIsAc: false
 
 	onClicked: {
 		Global.pageManager.pushPage("/pages/loads/DcLoadListPage.qml", {

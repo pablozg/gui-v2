@@ -26,6 +26,8 @@ ColumnLayout {
 		loadersActive: Global.solarInputs.devices.count > 0 // only show graph if there are solar inputs with history (i.e. not PV inverters)
 		visible: Global.solarInputs.inputCount > 0 // show if there are any solar inputs (PV chargers, PV inverters, etc.)
 		quantityLabel.dataObject: Global.system.solar
+		extraDataObject: Global.system.solar
+		extraIsAc: false
 		sideComponent: SolarYieldGraph {
 			spacing: Theme.geometry_sidePanel_solar_graph_bar_spacing
 			maximumBarCount: Theme.geometry_sidePanel_solar_graph_bar_count
@@ -43,6 +45,8 @@ ColumnLayout {
 		quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_AcInputOnly
 		quantityLabel.dataObject: generatorInput
 		quantityLabel.leftPadding: generatorDirectionIcon.visible ? (generatorDirectionIcon.width + Theme.geometry_acInputDirectionIcon_rightMargin) : 0
+		extraDataObject: generatorInput
+		extraIsAc: true
 		sideComponent: Item {
 			width: generatorLabel.width
 			height: generatorLabel.height
@@ -86,6 +90,8 @@ ColumnLayout {
 		quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_AcInputOnly
 		quantityLabel.dataObject: nonGeneratorInput
 		quantityLabel.leftPadding: acInputDirectionIcon.visible ? (acInputDirectionIcon.width + Theme.geometry_acInputDirectionIcon_rightMargin) : 0
+		extraDataObject: nonGeneratorInput
+		extraIsAc: true
 		loadersActive: nonGeneratorInput && nonGeneratorInput.operational
 		visible: loadersActive
 
@@ -219,6 +225,8 @@ exported power v  0.4 |   /
 		visible: loadersActive
 		quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Dc
 		quantityLabel.dataObject: Global.dcInputs
+		extraDataObject: Global.dcInputs
+		extraIsAc: false
 		sideComponent: LoadGraph {
 			animationEnabled: root.animationEnabled
 			threshold: 0    // no threshold needed for inputs
@@ -259,6 +267,8 @@ exported power v  0.4 |   /
 		icon.source: "qrc:/images/acloads.svg"
 		quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Ac
 		quantityLabel.dataObject: Global.system.load.ac
+		extraDataObject: Global.system.load.ac
+		extraIsAc: true
 		loadersActive: Global.system.hasAcLoads
 		visible: loadersActive
 		sideComponent: LoadGraph {
@@ -290,6 +300,8 @@ exported power v  0.4 |   /
 		visible: loadersActive
 		quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Dc
 		quantityLabel.dataObject: Global.system.dc
+		extraDataObject: Global.system.dc
+		extraIsAc: false
 		sideComponent: LoadGraph {
 			animationEnabled: root.animationEnabled
 			onNextValueRequested: addValue(dcLoadRange.valueAsRatio)

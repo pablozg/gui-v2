@@ -34,6 +34,10 @@ Rectangle {
 	property bool animationEnabled
 	property list<QtObject> extraContentChildren
 
+	// Extra data: voltage and current to show below the main value
+	property var overviewExtraDataObject: null
+	property bool overviewExtraIsAc: false
+
 	function getCompactHeight(s) {
 		const availableHeight = Theme.geometry_screen_height - Theme.geometry_statusBar_height - Theme.geometry_navigationBar_height
 		return s === VenusOS.OverviewWidget_Size_XL ? availableHeight
@@ -118,6 +122,7 @@ Rectangle {
 		y: root.verticalMargin
 		width: parent.width - 2*Theme.geometry_overviewPage_widget_content_horizontalMargin
 		height: widgetHeader.height + (quantityLabel.visible ? quantityLabel.height : 0)
+				+ (extraDataRow.visible ? extraDataRow.height : 0)
 
 		WidgetHeader {
 			id: widgetHeader
@@ -131,6 +136,43 @@ Rectangle {
 					  ? Theme.font_overviewPage_widget_quantityLabel_minimumSize
 					  : Theme.font_overviewPage_widget_quantityLabel_maximumSize
 			alignment: Qt.AlignLeft
+		}
+
+		Row {
+			id: extraDataRow
+			anchors.top: quantityLabel.bottom
+			spacing: Theme.geometry_quantityLabel_spacing * 3
+			visible: root.overviewExtraDataObject !== null
+					&& root.overviewExtraDataObject !== undefined
+					&& !quantityLabel._unitAmps
+					&& (_ovVoltageValid || _ovCurrentValid)
+
+			readonly property bool _ovVoltageValid: root.overviewExtraDataObject !== null
+					&& root.overviewExtraDataObject !== undefined
+					&& !isNaN(root.overviewExtraDataObject.voltage)
+			readonly property bool _ovCurrentValid: root.overviewExtraDataObject !== null
+					&& root.overviewExtraDataObject !== undefined
+					&& !isNaN(root.overviewExtraDataObject.current)
+
+			QuantityLabel {
+				visible: extraDataRow._ovVoltageValid
+				font.pixelSize: Theme.font_size_caption
+				valueColor: Theme.color_font_secondary
+				unitColor: Theme.color_font_secondary
+				unit: root.overviewExtraIsAc ? VenusOS.Units_Volt_AC : VenusOS.Units_Volt_DC
+				value: root.overviewExtraDataObject ? (root.overviewExtraDataObject.voltage ?? NaN) : NaN
+				alignment: Qt.AlignLeft
+			}
+
+			QuantityLabel {
+				visible: extraDataRow._ovCurrentValid
+				font.pixelSize: Theme.font_size_caption
+				valueColor: Theme.color_font_secondary
+				unitColor: Theme.color_font_secondary
+				unit: VenusOS.Units_Amp
+				value: root.overviewExtraDataObject ? (root.overviewExtraDataObject.current ?? NaN) : NaN
+				alignment: Qt.AlignLeft
+			}
 		}
 	}
 

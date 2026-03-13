@@ -16,6 +16,10 @@ Column {
 	property alias bottomComponent: bottomLoader.sourceComponent
 	property bool loadersActive
 
+	// Extra data: voltage and current to show below the main value
+	property var extraDataObject: null
+	property bool extraIsAc: false
+
 	width: parent.width
 	bottomPadding: Theme.geometry_sidePanel_verticalMargin
 
@@ -44,6 +48,43 @@ Column {
 			}
 			width: Theme.geometry_sidePanel_sideWidget_width
 			active: root.loadersActive
+		}
+	}
+
+	// Secondary row: show voltage and current when the main label shows watts
+	Row {
+		width: parent.width
+		spacing: Theme.geometry_quantityLabel_spacing * 3
+		visible: root.extraDataObject !== null
+				&& root.extraDataObject !== undefined
+				&& !quantityLabel._unitAmps
+				&& (_extraVoltageValid || _extraCurrentValid)
+
+		readonly property bool _extraVoltageValid: root.extraDataObject !== null
+				&& root.extraDataObject !== undefined
+				&& !isNaN(root.extraDataObject.voltage)
+		readonly property bool _extraCurrentValid: root.extraDataObject !== null
+				&& root.extraDataObject !== undefined
+				&& !isNaN(root.extraDataObject.current)
+
+		QuantityLabel {
+			visible: parent._extraVoltageValid
+			font.pixelSize: Theme.font_size_caption
+			valueColor: Theme.color_font_secondary
+			unitColor: Theme.color_font_secondary
+			unit: root.extraIsAc ? VenusOS.Units_Volt_AC : VenusOS.Units_Volt_DC
+			value: root.extraDataObject ? (root.extraDataObject.voltage ?? NaN) : NaN
+			alignment: Qt.AlignLeft
+		}
+
+		QuantityLabel {
+			visible: parent._extraCurrentValid
+			font.pixelSize: Theme.font_size_caption
+			valueColor: Theme.color_font_secondary
+			unitColor: Theme.color_font_secondary
+			unit: VenusOS.Units_Amp
+			value: root.extraDataObject ? (root.extraDataObject.current ?? NaN) : NaN
+			alignment: Qt.AlignLeft
 		}
 	}
 

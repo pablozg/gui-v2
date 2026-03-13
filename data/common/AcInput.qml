@@ -25,6 +25,7 @@ Device {
 	// clamp to zero any values with magnitude < 1 (assume it's noise) to avoid UI flicker.
 	readonly property real power: (Math.floor(Math.abs(_phaseMeasurements.power)) < 1.0) ? 0.0 : _phaseMeasurements.power
 	readonly property real current: _phaseMeasurements.current
+	readonly property real voltage: _phaseMeasurements.voltage
 	readonly property alias phases: _phaseMeasurements.phases
 
 	// Phase measurements from the input.
@@ -66,6 +67,7 @@ Device {
 		}
 		powerKey: root.serviceType === "vebus" || root.serviceType === "acsystem" ? "P" : "Power"
 		currentKey: root.serviceType === "vebus" || root.serviceType === "acsystem" ? "I" : "Current"
+		voltageKey: root.serviceType === "vebus" || root.serviceType === "acsystem" ? "V" : "Voltage"
 		_phaseCount.uid: {
 			if (root.inputInfo && root.inputInfo.valid) {
 				if (root.serviceType === "vebus" || root.serviceType === "acsystem") {

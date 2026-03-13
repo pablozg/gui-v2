@@ -11,6 +11,7 @@ QtObject {
 
 	readonly property real power: model.totalPower
 	readonly property real current: model.totalCurrent
+	readonly property real voltage: NaN // DC inputs model does not aggregate voltage
 	readonly property real maximumPower: _maximumPower.valid ? _maximumPower.value : NaN
 
 	readonly property DcMeterDeviceModel model: DcMeterDeviceModel {

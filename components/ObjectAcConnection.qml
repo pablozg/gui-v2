@@ -12,6 +12,7 @@ QtObject {
 	property string bindPrefix
 	property string powerKey: "Power"
 	property string currentKey: "Current"
+	property string voltageKey: "Voltage"
 	readonly property alias phaseCount: _phases.phaseCount
 
 	readonly property VeQuickItem powerL1: VeQuickItem {
@@ -41,6 +42,18 @@ QtObject {
 		uid: bindPrefix ? bindPrefix + "/L3/" + root.currentKey : ""
 		onValueChanged: root.phases.setValue(2, PhaseModel.CurrentRole, value)
 	}
+	readonly property VeQuickItem voltageL1: VeQuickItem {
+		uid: bindPrefix ? bindPrefix + "/L1/" + root.voltageKey : ""
+		onValueChanged: root.phases.setValue(0, PhaseModel.VoltageRole, value)
+	}
+	readonly property VeQuickItem voltageL2: VeQuickItem {
+		uid: bindPrefix ? bindPrefix + "/L2/" + root.voltageKey : ""
+		onValueChanged: root.phases.setValue(1, PhaseModel.VoltageRole, value)
+	}
+	readonly property VeQuickItem voltageL3: VeQuickItem {
+		uid: bindPrefix ? bindPrefix + "/L3/" + root.voltageKey : ""
+		onValueChanged: root.phases.setValue(2, PhaseModel.VoltageRole, value)
+	}
 	readonly property VeQuickItem _phaseCount: VeQuickItem { uid: bindPrefix ? bindPrefix + "/NumberOfPhases" : "" }
 	property bool splitPhaseL2PassthruDisabled: false
 	property bool isAcOutput: false
@@ -53,6 +66,9 @@ QtObject {
 	readonly property bool singlePhaseCurrentValid: _phaseCount.value === 1 && currentL1.valid
 	// multi-phase systems don't have a total current
 	readonly property real current: singlePhaseCurrentValid && currentL1.value !== undefined ? currentL1.value : NaN
+
+	readonly property bool singlePhaseVoltageValid: _phaseCount.value === 1 && voltageL1.valid
+	readonly property real voltage: singlePhaseVoltageValid && voltageL1.value !== undefined ? voltageL1.value : NaN
 
 	readonly property PhaseModel phases: PhaseModel {
 		id: _phases
