@@ -53,8 +53,14 @@ Column {
 
 	// Secondary row: show voltage and current
 	Row {
-		spacing: Theme.geometry_quantityLabel_spacing * 2
+		spacing: Theme.geometry_quantityLabel_spacing
 		layoutDirection: root.alignment & Qt.AlignRight ? Qt.RightToLeft : Qt.LeftToRight
+		anchors {
+			left: root.alignment & Qt.AlignLeft ? parent.left : undefined
+			right: root.alignment & Qt.AlignRight ? parent.right : undefined
+			leftMargin: root.alignment & Qt.AlignLeft ? icon.width + Theme.geometry_briefPage_edgeGauge_quantityLabel_spacing : 0
+			rightMargin: root.alignment & Qt.AlignRight ? icon.width + Theme.geometry_briefPage_edgeGauge_quantityLabel_spacing : 0
+		}
 		visible: root.extraDataObject !== null
 				&& root.extraDataObject !== undefined
 				&& (_extraVoltageValid || _extraCurrentValid)
@@ -73,7 +79,6 @@ Column {
 			unitColor: Theme.color_font_secondary
 			unit: root.extraIsAc ? VenusOS.Units_Volt_AC : VenusOS.Units_Volt_DC
 			value: root.extraDataObject ? (root.extraDataObject.voltage ?? NaN) : NaN
-			alignment: root.alignment & Qt.AlignRight ? Qt.AlignRight : Qt.AlignLeft
 		}
 
 		QuantityLabel {
@@ -83,7 +88,6 @@ Column {
 			unitColor: Theme.color_font_secondary
 			unit: VenusOS.Units_Amp
 			value: root.extraDataObject ? (root.extraDataObject.current ?? NaN) : NaN
-			alignment: root.alignment & Qt.AlignRight ? Qt.AlignRight : Qt.AlignLeft
 		}
 	}
 }
