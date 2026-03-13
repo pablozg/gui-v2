@@ -172,6 +172,8 @@ SwipeViewPage {
 					opacity: root._gaugeLabelOpacity
 					quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_AcInputOnly
 					quantityLabel.dataObject: Global.acInputs.highlightedInput
+					extraDataObject: Global.acInputs.highlightedInput
+					extraIsAc: true
 				}
 			}
 			onStatusChanged: if (status === Loader.Error) console.warn("Unable to load AC input edge")
@@ -213,6 +215,8 @@ SwipeViewPage {
 					opacity: root._gaugeLabelOpacity
 					quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Dc
 					quantityLabel.dataObject: Global.dcInputs
+					extraDataObject: Global.dcInputs
+					extraIsAc: false
 				}
 
 				ValueRange {
@@ -253,6 +257,8 @@ SwipeViewPage {
 					opacity: root._gaugeLabelOpacity
 					quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Any
 					quantityLabel.dataObject: Global.system.solar
+					extraDataObject: Global.system.solar
+					extraIsAc: false
 				}
 			}
 			onStatusChanged: if (status === Loader.Error) console.warn("Unable to load solar yield gauge")
@@ -301,6 +307,8 @@ SwipeViewPage {
 					opacity: root._gaugeLabelOpacity
 					quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Ac
 					quantityLabel.dataObject: Global.system.load.ac
+					extraDataObject: Global.system.load.ac
+					extraIsAc: true
 				}
 			}
 			onStatusChanged: if (status === Loader.Error) console.warn("Unable to load AC load edge")
@@ -336,6 +344,8 @@ SwipeViewPage {
 					opacity: root._gaugeLabelOpacity
 					quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Dc
 					quantityLabel.dataObject: Global.system.dc
+					extraDataObject: Global.system.dc
+					extraIsAc: false
 				}
 
 				ValueRange {

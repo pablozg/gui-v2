@@ -7,12 +7,16 @@ import QtQuick
 import QtQuick.Controls.impl as CP
 import Victron.VenusOS
 
-Row {
+Column {
 	id: root
 
 	property int alignment: Qt.AlignTop | Qt.AlignLeft
 	property alias icon: icon
 	property alias quantityLabel: quantityLabel
+
+	// Extra data: voltage and current to show below the main value
+	property var extraDataObject: null
+	property bool extraIsAc: false
 
 	// Use x/y bindings as the layout sometimes did not update dynamically when multiple anchor
 	// bindings were used instead.
@@ -25,23 +29,61 @@ Row {
 		 ? parent.height - height - Theme.geometry_briefPage_edgeGauge_quantityLabel_bottomMargin
 		 : Theme.geometry_briefPage_edgeGauge_quantityLabel_topMargin    // root.alignment & Qt.AlignTop
 
-	spacing: Theme.geometry_briefPage_edgeGauge_quantityLabel_spacing
-	layoutDirection: root.alignment & Qt.AlignRight ? Qt.RightToLeft : Qt.LeftToRight
+	Row {
+		spacing: Theme.geometry_briefPage_edgeGauge_quantityLabel_spacing
+		layoutDirection: root.alignment & Qt.AlignRight ? Qt.RightToLeft : Qt.LeftToRight
 
-	CP.ColorImage {
-		id: icon
+		CP.ColorImage {
+			id: icon
 
-		anchors.verticalCenter: parent.verticalCenter
-		width: Theme.geometry_widgetHeader_icon_width
-		fillMode: Image.Pad
-		color: Theme.color_font_primary
+			anchors.verticalCenter: parent.verticalCenter
+			width: Theme.geometry_widgetHeader_icon_width
+			fillMode: Image.Pad
+			color: Theme.color_font_primary
+		}
+
+		ElectricalQuantityLabel {
+			id: quantityLabel
+
+			height: icon.height
+			anchors.verticalCenter: parent.verticalCenter
+			font.pixelSize: Theme.font_briefPage_quantityLabel_size
+		}
 	}
 
-	ElectricalQuantityLabel {
-		id: quantityLabel
+	// Secondary row: show voltage and current
+	Row {
+		spacing: Theme.geometry_quantityLabel_spacing * 2
+		layoutDirection: root.alignment & Qt.AlignRight ? Qt.RightToLeft : Qt.LeftToRight
+		visible: root.extraDataObject !== null
+				&& root.extraDataObject !== undefined
+				&& (_extraVoltageValid || _extraCurrentValid)
 
-		height: icon.height
-		anchors.verticalCenter: parent.verticalCenter
-		font.pixelSize: Theme.font_briefPage_quantityLabel_size
+		readonly property bool _extraVoltageValid: root.extraDataObject !== null
+				&& root.extraDataObject !== undefined
+				&& !isNaN(root.extraDataObject.voltage)
+		readonly property bool _extraCurrentValid: root.extraDataObject !== null
+				&& root.extraDataObject !== undefined
+				&& !isNaN(root.extraDataObject.current)
+
+		QuantityLabel {
+			visible: parent._extraVoltageValid
+			font.pixelSize: Theme.font_size_caption
+			valueColor: Theme.color_font_secondary
+			unitColor: Theme.color_font_secondary
+			unit: root.extraIsAc ? VenusOS.Units_Volt_AC : VenusOS.Units_Volt_DC
+			value: root.extraDataObject ? (root.extraDataObject.voltage ?? NaN) : NaN
+			alignment: root.alignment & Qt.AlignRight ? Qt.AlignRight : Qt.AlignLeft
+		}
+
+		QuantityLabel {
+			visible: parent._extraCurrentValid
+			font.pixelSize: Theme.font_size_caption
+			valueColor: Theme.color_font_secondary
+			unitColor: Theme.color_font_secondary
+			unit: VenusOS.Units_Amp
+			value: root.extraDataObject ? (root.extraDataObject.current ?? NaN) : NaN
+			alignment: root.alignment & Qt.AlignRight ? Qt.AlignRight : Qt.AlignLeft
+		}
 	}
 }
