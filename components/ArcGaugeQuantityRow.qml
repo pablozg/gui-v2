@@ -29,6 +29,8 @@ Column {
 		 ? parent.height - height - Theme.geometry_briefPage_edgeGauge_quantityLabel_bottomMargin
 		 : Theme.geometry_briefPage_edgeGauge_quantityLabel_topMargin    // root.alignment & Qt.AlignTop
 
+	spacing: 6
+
 	Row {
 		spacing: Theme.geometry_briefPage_edgeGauge_quantityLabel_spacing
 		layoutDirection: root.alignment & Qt.AlignRight ? Qt.RightToLeft : Qt.LeftToRight
