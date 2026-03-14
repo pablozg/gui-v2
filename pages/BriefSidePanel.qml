@@ -34,6 +34,8 @@ ColumnLayout {
 				modelLength: 120
 				animationEnabled: root.animationEnabled
 				threshold: 0
+				normalizeToVisibleMaximum: true
+				trimLeadingInitialValues: true
 				aboveThresholdFillColor: "#FFD700"
 			}
 
@@ -149,14 +151,16 @@ ColumnLayout {
 		quantityLabel.dataObject: Global.dcInputs
 		extraDataObject: Global.dcInputs
 		extraIsAc: false
-		sideComponent: LoadGraph {
-			externalSource: true
-			model: Global.graphHistory ? Global.graphHistory.dcInputModel : []
-			modelLength: 120
-			animationEnabled: root.animationEnabled
-			threshold: 0    // no threshold needed for inputs
-			aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
-		}
+			sideComponent: LoadGraph {
+				externalSource: true
+				model: Global.graphHistory ? Global.graphHistory.dcInputModel : []
+					modelLength: 120
+					animationEnabled: root.animationEnabled
+					threshold: 0    // no threshold needed for inputs
+					normalizeToVisibleMaximum: true
+					trimLeadingInitialValues: true
+					aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
+				}
 
 		bottomComponent: Global.isGxDevice ? cheapGaugeDcInput : prettyGaugeDcInput
 
@@ -195,12 +199,17 @@ ColumnLayout {
 		extraIsAc: true
 		loadersActive: Global.system.hasAcLoads
 		visible: loadersActive
-		sideComponent: LoadGraph {
-			externalSource: true
-			model: Global.graphHistory ? Global.graphHistory.acLoadsModel : []
-			modelLength: 120
-			animationEnabled: root.animationEnabled
-		}
+			sideComponent: LoadGraph {
+				externalSource: true
+				model: Global.graphHistory ? Global.graphHistory.acLoadsModel : []
+				modelLength: 120
+					animationEnabled: root.animationEnabled
+					threshold: 0
+					zeroCentered: false
+					normalizeToVisibleMaximum: true
+					trimLeadingInitialValues: true
+					aboveThresholdFillColor: Theme.color_blue
+				}
 		bottomComponent: ThreePhaseBarGauge {
 			width: parent.width
 			height: Theme.geometry_barGauge_vertical_width_large
@@ -222,12 +231,16 @@ ColumnLayout {
 		quantityLabel.dataObject: Global.system.dc
 		extraDataObject: Global.system.dc
 		extraIsAc: false
-		sideComponent: LoadGraph {
-			externalSource: true
-			model: Global.graphHistory ? Global.graphHistory.dcLoadsModel : []
-			modelLength: 120
-			animationEnabled: root.animationEnabled
-		}
+			sideComponent: LoadGraph {
+				externalSource: true
+				model: Global.graphHistory ? Global.graphHistory.dcLoadsModel : []
+					modelLength: 120
+					animationEnabled: root.animationEnabled
+					threshold: 0
+					normalizeToVisibleMaximum: true
+					trimLeadingInitialValues: true
+					aboveThresholdFillColor: Theme.color_blue
+				}
 
 		bottomComponent: Global.isGxDevice ? cheapGaugeDcLoad : prettyGaugeDcLoad
 

@@ -12,7 +12,7 @@ Item {
 
 	property var model: [] // contains 12 values that define the shape of our bendy graph
 	property real initialModelValue: 0.0
-	property real offsetFraction
+	property real offsetFraction: 0.0
 	property real threshold: 0.8    // same as 80% warning level for gauges
 	property int dotSize: Theme.geometry_briefPage_sidePanel_loadGraph_dotSize
 	property color aboveThresholdFillColor: Theme.color_orange
@@ -20,7 +20,9 @@ Item {
 	property color horizontalGradientColor1: Theme.color_briefPage_background
 	property color horizontalGradientColor2: "transparent"
 	property bool zeroCentered
-	property alias animationEnabled: graphAnimation.running
+	property bool normalizeToVisibleMaximum: false
+	property bool trimLeadingInitialValues: false
+	property bool animationEnabled: true
 
 	// Number of data points shown in the graph.
 	// Default 12 = original behavior. Set to 120 for 2-hour history at 1 point/min.
@@ -39,6 +41,8 @@ Item {
 	// When true, the model is managed externally (e.g. by Global.graphHistory).
 	// Internal timers, sampling, and persistence are all disabled.
 	property bool externalSource: false
+	readonly property bool _animateBetweenPoints: !externalSource && samplesPerPoint <= 1 && animationEnabled
+	readonly property bool _stepWithoutAnimation: !externalSource && samplesPerPoint <= 1 && !animationEnabled
 
 	signal nextValueRequested()
 
@@ -57,6 +61,48 @@ Item {
 			return data.slice(data.length - modelLength)
 		}
 		return Array(modelLength - data.length).fill(initialModelValue).concat(data)
+	}
+
+	function _displayModel(data) {
+		let normalized = _normalizedModel(data)
+		if (trimLeadingInitialValues && !zeroCentered) {
+			let firstMeaningfulIndex = -1
+			for (let i = 0; i < normalized.length; ++i) {
+				const value = normalized[i]
+				if (!isNaN(value) && Math.abs(value - initialModelValue) > 0.0001) {
+					firstMeaningfulIndex = i
+					break
+				}
+			}
+
+			if (firstMeaningfulIndex > 0) {
+				normalized = normalized.slice(firstMeaningfulIndex)
+			}
+
+			if (normalized.length < 2) {
+				normalized = _normalizedModel(data).slice(-2)
+			}
+		}
+
+		if (!normalizeToVisibleMaximum || zeroCentered) {
+			return normalized
+		}
+
+		let maxValue = 0
+		for (let i = 0; i < normalized.length; ++i) {
+			const value = normalized[i]
+			if (!isNaN(value) && value > maxValue) {
+				maxValue = value
+			}
+		}
+
+		if (!(maxValue > 0)) {
+			return normalized
+		}
+
+		return normalized.map(function(value) {
+			return isNaN(value) ? initialModelValue : Math.min(value / maxValue, 1)
+		})
 	}
 
 	function addValue(value) {
@@ -130,23 +176,23 @@ Item {
 		onTriggered: root.nextValueRequested()
 	}
 
-	Timer {
-		id: pausedAnimationTimer
-		running: !root.externalSource && root.samplesPerPoint <= 1 && !root.animationEnabled // even if !Global.timersEnabled, to avoid discontinuities
-		repeat: true
-		interval: Theme.geometry_briefPage_sidePanel_loadGraph_intervalMs
-		onTriggered: {
+		Timer {
+			id: pausedAnimationTimer
+			running: root._stepWithoutAnimation // even if !Global.timersEnabled, to avoid discontinuities
+			repeat: true
+			interval: Theme.geometry_briefPage_sidePanel_loadGraph_intervalMs
+			onTriggered: {
 			// step the graph and request the next value.
 			root.offsetFraction = 1.0
 			root.nextValueRequested();
 		}
 	}
 
-	SequentialAnimation {
-		id: graphAnimation
+			SequentialAnimation {
+				id: graphAnimation
 
-		running: !root.externalSource && root.samplesPerPoint <= 1
-		loops: Animation.Infinite
+			running: root._animateBetweenPoints
+			loops: Animation.Infinite
 
 		NumberAnimation {
 			target: root
@@ -170,12 +216,12 @@ Item {
 
 			anchors.fill: parent
 
-			visible: threshold === 0.0 || minYValue < (root.height - (root.height * threshold))
-			calculateMinYValue: true
-			model: root.model
-			strokeColor: aboveThresholdFillColor
-			offsetFraction: root.offsetFraction
-			fillGradient: LinearGradient {
+				visible: threshold === 0.0 || minYValue < (root.height - (root.height * threshold))
+				calculateMinYValue: true
+				model: root._displayModel(root.model)
+				strokeColor: aboveThresholdFillColor
+				offsetFraction: root.offsetFraction
+				fillGradient: LinearGradient {
 				x1: 0; y1: 0
 				x2: 0; y2: height
 				GradientStop { position: 0; color: aboveThresholdFillColor }
@@ -202,11 +248,11 @@ Item {
 			}
 			height: root.height // larger than parent.
 
-			//minYValue: (root.height - (root.height * threshold)) // we would like to do this, but the cubic pathing causes orange edge mismatch.
-			model: root.model
-			strokeColor: belowThresholdFillColor
-			zeroCentered: root.zeroCentered
-			offsetFraction: root.offsetFraction
+				//minYValue: (root.height - (root.height * threshold)) // we would like to do this, but the cubic pathing causes orange edge mismatch.
+				model: root._displayModel(root.model)
+				strokeColor: belowThresholdFillColor
+				zeroCentered: root.zeroCentered
+				offsetFraction: root.offsetFraction
 			fillGradient: LinearGradient {
 				x1: 0; y1: 0
 				x2: 0; y2: height
@@ -264,6 +310,18 @@ Item {
 				}
 			}
 		}
+
+	onExternalSourceChanged: {
+		if (externalSource) {
+			offsetFraction = 0.0
+		}
+	}
+
+	onModelChanged: {
+		if (externalSource) {
+			offsetFraction = 0.0
+		}
+	}
 
 	Component.onDestruction: {
 		if (!externalSource) _saveHistory()
