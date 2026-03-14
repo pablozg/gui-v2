@@ -136,6 +136,8 @@ Write-Host "  ssh ${GxUser}@${GxHost} 'cp -r /tmp/gui-v2-backup/* ${GxBase}/'"
 
 # Cleanup
 Remove-Item $askpassBat -ErrorAction SilentlyContinue
-Remove-Variable -Name SSH_ASKPASS,SSH_ASKPASS_REQUIRE,DISPLAY -Scope Env -ErrorAction SilentlyContinue
+Remove-Item Env:\SSH_ASKPASS -ErrorAction SilentlyContinue
+Remove-Item Env:\SSH_ASKPASS_REQUIRE -ErrorAction SilentlyContinue
+Remove-Item Env:\DISPLAY -ErrorAction SilentlyContinue
 
 Pop-Location
