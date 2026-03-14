@@ -689,7 +689,7 @@ void BackendConnection::ensureGraphHistorySettings()
 	QDBusInterface settingsInterface(
 			QStringLiteral("com.victronenergy.settings"),
 			QStringLiteral("/Settings"),
-			QStringLiteral("com.victronenergy.BusItem"),
+			QStringLiteral("com.victronenergy.Settings"),
 			dbus);
 	if (!settingsInterface.isValid()) {
 		qWarning() << "Graph history settings: unable to access com.victronenergy.settings /Settings";
@@ -713,10 +713,57 @@ void BackendConnection::ensureGraphHistorySettings()
 		settings.append(setting);
 	}
 
+	const auto addSingleSetting = [&settingsInterface](const QString &path) {
+		const QString normalizedPath = path.startsWith(QLatin1Char('/')) ? path.mid(1) : path;
+		const int separatorIndex = normalizedPath.indexOf(QLatin1Char('/'));
+		if (separatorIndex <= 0 || separatorIndex >= normalizedPath.length() - 1) {
+			qWarning() << "Graph history settings: invalid AddSetting path:" << path;
+			return false;
+		}
+
+		const QString group = normalizedPath.left(separatorIndex);
+		const QString settingName = normalizedPath.mid(separatorIndex + 1);
+		const QDBusMessage addReply = settingsInterface.call(
+				QStringLiteral("AddSetting"),
+				group,
+				settingName,
+				QString(),
+				QStringLiteral("s"),
+				QString(),
+				QString());
+		if (addReply.type() == QDBusMessage::ErrorMessage) {
+			qWarning() << "Graph history settings: AddSetting failed for" << path << ":"
+					<< addReply.errorName() << addReply.errorMessage();
+			return false;
+		}
+
+		return true;
+	};
+
 	const QDBusMessage reply = settingsInterface.call(QStringLiteral("AddSettings"), settings);
 	if (reply.type() == QDBusMessage::ErrorMessage) {
-		qWarning() << "Graph history settings: AddSettings failed:" << reply.errorName() << reply.errorMessage();
-		return;
+		if (reply.errorName() == QStringLiteral("org.freedesktop.DBus.Error.UnknownMethod")) {
+			qWarning() << "Graph history settings: AddSettings unavailable, falling back to AddSetting";
+			for (const QString &path : settingPaths) {
+				if (!addSingleSetting(path)) {
+					return;
+				}
+			}
+		} else {
+			qWarning() << "Graph history settings: AddSettings failed:" << reply.errorName() << reply.errorMessage();
+			return;
+		}
+	} else {
+		const QVariantList results = reply.arguments().value(0).toList();
+		for (const QVariant &resultValue : results) {
+			const QVariantMap result = resultValue.toMap();
+			if (result.value(QStringLiteral("error")).toInt() != 0) {
+				qWarning() << "Graph history settings: AddSettings returned error for"
+						<< result.value(QStringLiteral("path")).toString() << ":"
+						<< result;
+				return;
+			}
+		}
 	}
 
 	m_graphHistorySettingsEnsured = true;
