@@ -6,7 +6,7 @@
 # For which device type are you building?
 # arm: All GX devices, except Raspberry Pi 5
 # aarch64: Raspberry Pi 5
-DEVICE_TYPE="arm"
+DEVICE_TYPE="${DEVICE_TYPE:-arm}"
 
 
 # Check if the script is run on Ubuntu 22.x or later
@@ -25,7 +25,7 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 echo
-echo "NOTE: If you are using a Raspberry Pi 5, please change the DEVICE_TYPE variable to 'aarch64' in this script."
+echo "NOTE: If you are using a Raspberry Pi 5, run this script with DEVICE_TYPE=aarch64."
 echo
 sleep 3
 
