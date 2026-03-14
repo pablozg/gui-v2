@@ -61,11 +61,16 @@ Item {
 
 				readonly property int modelLength: 120
 				readonly property int samplesPerPoint: 60
-				readonly property int checkpointEveryPoints: 5
+				readonly property int checkpointEveryPoints: 720
 
 				readonly property bool acInputShowsFeedIn: _acInputRange.minimumCurrent < 0
 				readonly property real acInputInitialModelValue: acInputShowsFeedIn ? 0.5 : 0
 				readonly property real acInputThreshold: isNaN(_acInputMaxAboveZeroMidPoint) ? 0 : 0.5
+				readonly property bool _publishesRuntimeHistory: BackendConnection.type === BackendConnection.DBusSource
+				readonly property bool _readsRuntimeHistory: BackendConnection.type === BackendConnection.MqttSource
+				readonly property string _runtimeHistoryServiceUid: _readsRuntimeHistory
+						? BackendConnection.serviceUidForType("graphhistory")
+						: ""
 
 			property var solarModel: _normalizedModel([], "solarModel")
 			property var acInputModel: _normalizedModel([], "acInputModel")
@@ -156,7 +161,7 @@ Item {
 				property int _dcLoadsAcc: 0; property real _dcLoadsSum: 0
 				property bool _dirty: false
 				property int _dirtyPointCount: 0
-				property bool _needsBootstrapCheckpoint: true
+				property bool _needsRuntimeSeed: false
 
 				function _hasMeaningfulData(model, channelName) {
 					const initialValue = _initialValueForChannel(channelName)
@@ -175,6 +180,72 @@ Item {
 					temp.shift()
 					graphHistory[channelName] = temp
 					_dirty = true
+				}
+
+				function _serializedModel(model, channelName) {
+					var rounded = graphHistory._normalizedModel(model, channelName).map(function(v) {
+						return Math.round(v * 10000) / 10000
+					})
+					return JSON.stringify(rounded)
+				}
+
+				function _parsedModelFromValue(value, channelName) {
+					if (!value) {
+						return null
+					}
+					try {
+						var saved = JSON.parse(value)
+						if (Array.isArray(saved) && saved.length > 0) {
+							return graphHistory._normalizedModel(saved, channelName)
+						}
+					} catch(e) {
+					}
+					return null
+				}
+
+				function _restoreFromItem(item, channelName) {
+					if (!item || !item.valid) {
+						return { restored: false, meaningful: false }
+					}
+					var parsed = _parsedModelFromValue(item.value, channelName)
+					if (!parsed) {
+						return { restored: false, meaningful: false }
+					}
+					graphHistory[channelName] = parsed
+					return {
+						restored: true,
+						meaningful: graphHistory._hasMeaningfulData(parsed, channelName)
+					}
+				}
+
+				function _publishRuntimeAll(force) {
+					if (!_publishesRuntimeHistory) {
+						return false
+					}
+					if (!force && !_dirty) {
+						return true
+					}
+
+					let allPublished = true
+					function _publish(channel, model, channelName) {
+						if (!BackendConnection.setGraphHistoryValue(channel, graphHistory._serializedModel(model, channelName))) {
+							allPublished = false
+						}
+					}
+
+					_publish("solar", solarModel, "solarModel")
+					_publish("acInput", acInputModel, "acInputModel")
+					_publish("dcInput", dcInputModel, "dcInputModel")
+					_publish("acLoads", acLoadsModel, "acLoadsModel")
+					_publish("dcLoads", dcLoadsModel, "dcLoadsModel")
+
+					if (allPublished) {
+						_needsRuntimeSeed = false
+					} else if (force || _dirty) {
+						_needsRuntimeSeed = true
+					}
+
+					return allPublished
 				}
 
 			function _sample() {
@@ -238,71 +309,80 @@ Item {
 
 				if (pushedPoint) {
 					_dirtyPointCount++
+					if (!_publishRuntimeAll(false)) {
+						_needsRuntimeSeed = true
+					}
 				}
 			}
 
-			readonly property VeQuickItem _solarHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/solar" : "" }
-			readonly property VeQuickItem _acInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acInput" : "" }
-			readonly property VeQuickItem _dcInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcInput" : "" }
-			readonly property VeQuickItem _acLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acLoads" : "" }
-			readonly property VeQuickItem _dcLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcLoads" : "" }
+			readonly property VeQuickItem _solarRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/solar" : "" }
+			readonly property VeQuickItem _acInputRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/acInput" : "" }
+			readonly property VeQuickItem _dcInputRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/dcInput" : "" }
+			readonly property VeQuickItem _acLoadsRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/acLoads" : "" }
+			readonly property VeQuickItem _dcLoadsRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/dcLoads" : "" }
+
+			readonly property VeQuickItem _solarCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/solar" : "" }
+			readonly property VeQuickItem _acInputCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acInput" : "" }
+			readonly property VeQuickItem _dcInputCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcInput" : "" }
+			readonly property VeQuickItem _acLoadsCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acLoads" : "" }
+			readonly property VeQuickItem _dcLoadsCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcLoads" : "" }
 
 				function _saveAll(force) {
 					if (!_dirty) return
-					if (!force && !_needsBootstrapCheckpoint && _dirtyPointCount < checkpointEveryPoints) return
+					if (!force && _dirtyPointCount < checkpointEveryPoints) return
 					let allSaved = true
 					function _save(item, model, channelName) {
 						if (!item || !item.uid || !item.valid) {
 							allSaved = false
-						return
+							return
+						}
+						item.setValue(graphHistory._serializedModel(model, channelName))
 					}
-					var rounded = graphHistory._normalizedModel(model, channelName).map(function(v) {
-						return Math.round(v * 10000) / 10000
-					})
-					item.setValue(JSON.stringify(rounded))
-				}
-				_save(_solarHistory, solarModel, "solarModel")
-				_save(_acInputHistory, acInputModel, "acInputModel")
-					_save(_dcInputHistory, dcInputModel, "dcInputModel")
-					_save(_acLoadsHistory, acLoadsModel, "acLoadsModel")
-					_save(_dcLoadsHistory, dcLoadsModel, "dcLoadsModel")
+					_save(_solarCheckpointHistory, solarModel, "solarModel")
+					_save(_acInputCheckpointHistory, acInputModel, "acInputModel")
+					_save(_dcInputCheckpointHistory, dcInputModel, "dcInputModel")
+					_save(_acLoadsCheckpointHistory, acLoadsModel, "acLoadsModel")
+					_save(_dcLoadsCheckpointHistory, dcLoadsModel, "dcLoadsModel")
 					if (allSaved) {
 						_dirty = false
 						_dirtyPointCount = 0
-						_needsBootstrapCheckpoint = false
-					} else {
-						_dirty = true
 					}
 				}
 
 				function _restoreAll() {
-					let restoredMeaningfulData = false
-					function _restore(item, channelName) {
-						if (!item || !item.valid || !item.value) return
-						try {
-							var saved = JSON.parse(item.value)
-							if (Array.isArray(saved) && saved.length > 0) {
-								graphHistory[channelName] = graphHistory._normalizedModel(saved, channelName)
-								restoredMeaningfulData = graphHistory._hasMeaningfulData(saved, channelName) || restoredMeaningfulData
-							}
-						} catch(e) { /* ignore */ }
+					let restoredFromCheckpoint = false
+
+					function _restoreChannel(runtimeItem, checkpointItem, channelName) {
+						let result = graphHistory._restoreFromItem(runtimeItem, channelName)
+						if (result.restored) {
+							return
+						}
+						result = graphHistory._restoreFromItem(checkpointItem, channelName)
+						if (result.restored) {
+							restoredFromCheckpoint = true
+						}
 					}
-					_restore(_solarHistory, "solarModel")
-					_restore(_acInputHistory, "acInputModel")
-					_restore(_dcInputHistory, "dcInputModel")
-					_restore(_acLoadsHistory, "acLoadsModel")
-					_restore(_dcLoadsHistory, "dcLoadsModel")
-					_needsBootstrapCheckpoint = !restoredMeaningfulData
+
+					_restoreChannel(_solarRuntimeHistory, _solarCheckpointHistory, "solarModel")
+					_restoreChannel(_acInputRuntimeHistory, _acInputCheckpointHistory, "acInputModel")
+					_restoreChannel(_dcInputRuntimeHistory, _dcInputCheckpointHistory, "dcInputModel")
+					_restoreChannel(_acLoadsRuntimeHistory, _acLoadsCheckpointHistory, "acLoadsModel")
+					_restoreChannel(_dcLoadsRuntimeHistory, _dcLoadsCheckpointHistory, "dcLoadsModel")
+
+					if (_publishesRuntimeHistory && restoredFromCheckpoint) {
+						_needsRuntimeSeed = true
+						_publishRuntimeAll(true)
+					}
 				}
 
 		readonly property Timer _sampleTimer: Timer {
-			running: Global.dataManagerLoaded
+			running: Global.dataManagerLoaded && BackendConnection.type !== BackendConnection.MqttSource
 			repeat: true; interval: 1000
 			onTriggered: graphHistory._sample()
 		}
 
 			readonly property Timer _saveTimer: Timer {
-				running: Global.dataManagerLoaded
+				running: Global.dataManagerLoaded && BackendConnection.type !== BackendConnection.MqttSource
 				repeat: true; interval: 60000
 				onTriggered: graphHistory._saveAll(false)
 			}
@@ -312,46 +392,121 @@ Item {
 				onTriggered: graphHistory._restoreAll()
 			}
 
-			readonly property Connections _solarHistoryConnection: Connections {
-				target: graphHistory._solarHistory
+			readonly property Connections _solarRuntimeHistoryConnection: Connections {
+				target: graphHistory._solarRuntimeHistory
 				function onValidChanged() {
-					if (graphHistory._solarHistory.valid) {
+					if (graphHistory._solarRuntimeHistory.valid) {
+						graphHistory._restoreAll()
+						if (graphHistory._needsRuntimeSeed) {
+							graphHistory._publishRuntimeAll(true)
+						}
+					}
+				}
+				function onValueChanged() {
+					graphHistory._restoreFromItem(graphHistory._solarRuntimeHistory, "solarModel")
+				}
+			}
+
+			readonly property Connections _acInputRuntimeHistoryConnection: Connections {
+				target: graphHistory._acInputRuntimeHistory
+				function onValidChanged() {
+					if (graphHistory._acInputRuntimeHistory.valid) {
+						graphHistory._restoreAll()
+						if (graphHistory._needsRuntimeSeed) {
+							graphHistory._publishRuntimeAll(true)
+						}
+					}
+				}
+				function onValueChanged() {
+					graphHistory._restoreFromItem(graphHistory._acInputRuntimeHistory, "acInputModel")
+				}
+			}
+
+			readonly property Connections _dcInputRuntimeHistoryConnection: Connections {
+				target: graphHistory._dcInputRuntimeHistory
+				function onValidChanged() {
+					if (graphHistory._dcInputRuntimeHistory.valid) {
+						graphHistory._restoreAll()
+						if (graphHistory._needsRuntimeSeed) {
+							graphHistory._publishRuntimeAll(true)
+						}
+					}
+				}
+				function onValueChanged() {
+					graphHistory._restoreFromItem(graphHistory._dcInputRuntimeHistory, "dcInputModel")
+				}
+			}
+
+			readonly property Connections _acLoadsRuntimeHistoryConnection: Connections {
+				target: graphHistory._acLoadsRuntimeHistory
+				function onValidChanged() {
+					if (graphHistory._acLoadsRuntimeHistory.valid) {
+						graphHistory._restoreAll()
+						if (graphHistory._needsRuntimeSeed) {
+							graphHistory._publishRuntimeAll(true)
+						}
+					}
+				}
+				function onValueChanged() {
+					graphHistory._restoreFromItem(graphHistory._acLoadsRuntimeHistory, "acLoadsModel")
+				}
+			}
+
+			readonly property Connections _dcLoadsRuntimeHistoryConnection: Connections {
+				target: graphHistory._dcLoadsRuntimeHistory
+				function onValidChanged() {
+					if (graphHistory._dcLoadsRuntimeHistory.valid) {
+						graphHistory._restoreAll()
+						if (graphHistory._needsRuntimeSeed) {
+							graphHistory._publishRuntimeAll(true)
+						}
+					}
+				}
+				function onValueChanged() {
+					graphHistory._restoreFromItem(graphHistory._dcLoadsRuntimeHistory, "dcLoadsModel")
+				}
+			}
+
+			readonly property Connections _solarCheckpointHistoryConnection: Connections {
+				target: graphHistory._solarCheckpointHistory
+				function onValidChanged() {
+					if (graphHistory._solarCheckpointHistory.valid) {
 						graphHistory._restoreAll()
 					}
 				}
 			}
 
-			readonly property Connections _acInputHistoryConnection: Connections {
-				target: graphHistory._acInputHistory
+			readonly property Connections _acInputCheckpointHistoryConnection: Connections {
+				target: graphHistory._acInputCheckpointHistory
 				function onValidChanged() {
-					if (graphHistory._acInputHistory.valid) {
+					if (graphHistory._acInputCheckpointHistory.valid) {
 						graphHistory._restoreAll()
 					}
 				}
 			}
 
-			readonly property Connections _dcInputHistoryConnection: Connections {
-				target: graphHistory._dcInputHistory
+			readonly property Connections _dcInputCheckpointHistoryConnection: Connections {
+				target: graphHistory._dcInputCheckpointHistory
 				function onValidChanged() {
-					if (graphHistory._dcInputHistory.valid) {
+					if (graphHistory._dcInputCheckpointHistory.valid) {
 						graphHistory._restoreAll()
 					}
 				}
 			}
 
-			readonly property Connections _acLoadsHistoryConnection: Connections {
-				target: graphHistory._acLoadsHistory
+			readonly property Connections _acLoadsCheckpointHistoryConnection: Connections {
+				target: graphHistory._acLoadsCheckpointHistory
 				function onValidChanged() {
-					if (graphHistory._acLoadsHistory.valid) {
+					if (graphHistory._acLoadsCheckpointHistory.valid) {
 						graphHistory._restoreAll()
 					}
 				}
 			}
 
-			readonly property Connections _dcLoadsHistoryConnection: Connections {
-				target: graphHistory._dcLoadsHistory
+			readonly property Connections _dcLoadsCheckpointHistoryConnection: Connections {
+				target: graphHistory._dcLoadsCheckpointHistory
 				function onValidChanged() {
-					if (graphHistory._dcLoadsHistory.valid) {
+					if (graphHistory._dcLoadsCheckpointHistory.valid) {
 						graphHistory._restoreAll()
 					}
 				}

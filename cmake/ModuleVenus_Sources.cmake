@@ -659,6 +659,8 @@ list(APPEND VictronVenusOS_CPP_SOURCES
     src/frameratemodel.cpp
     src/genericinput.h
     src/genericinput.cpp
+    src/graphhistoryservice.h
+    src/graphhistoryservice.cpp
     src/iochannel.h
     src/iochannel.cpp
     src/iochannelgroupmodel.h

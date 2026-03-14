@@ -7,6 +7,7 @@
 #include "veqitemmockproducer.h"
 #include "basedevice.h"
 #include "enums.h"
+#include "graphhistoryservice.h"
 
 #if defined(VENUS_WEBASSEMBLY_BUILD)
 #include <emscripten.h>
@@ -207,6 +208,7 @@ void BackendConnection::initDBusConnection(const QString &address)
 	}
 
 	dbusProducer->open(dbus);
+	ensureGraphHistoryService(address);
 	emit producerChanged();
 
 	setState(VeDbusConnection::getConnection().isConnected());
@@ -382,6 +384,14 @@ void BackendConnection::setType(const SourceType type, const QString &address)
 		m_producer = nullptr;
 		emit producerChanged();
 	}
+
+	m_graphHistorySettingsEnsured = false;
+#if !defined(VENUS_WEBASSEMBLY_BUILD)
+	if (m_graphHistoryService) {
+		m_graphHistoryService->deleteLater();
+		m_graphHistoryService = nullptr;
+	}
+#endif
 
 	switch (type) {
 	case DBusSource:
@@ -767,6 +777,40 @@ void BackendConnection::ensureGraphHistorySettings()
 	}
 
 	m_graphHistorySettingsEnsured = true;
+#endif
+}
+
+void BackendConnection::ensureGraphHistoryService(const QString &address)
+{
+#if defined(VENUS_WEBASSEMBLY_BUILD)
+	Q_UNUSED(address);
+#else
+	if (m_type != DBusSource) {
+		return;
+	}
+
+	if (!m_graphHistoryService) {
+		m_graphHistoryService = new GraphHistoryService(this);
+	}
+
+	if (!m_graphHistoryService->isStarted()) {
+		m_graphHistoryService->start(address);
+	}
+#endif
+}
+
+bool BackendConnection::setGraphHistoryValue(const QString &channel, const QString &value)
+{
+#if defined(VENUS_WEBASSEMBLY_BUILD)
+	Q_UNUSED(channel);
+	Q_UNUSED(value);
+	return false;
+#else
+	if (m_type != DBusSource) {
+		return false;
+	}
+
+	return m_graphHistoryService && m_graphHistoryService->setHistoryValue(channel, value);
 #endif
 }
 

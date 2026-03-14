@@ -19,6 +19,8 @@ class AlarmBusitem;
 namespace Victron {
 namespace VenusOS {
 
+class GraphHistoryService;
+
 class BackendConnection : public QObject
 {
 	Q_OBJECT
@@ -166,6 +168,7 @@ public:
 	Q_INVOKABLE QString serviceUidFromUid(const QString &fullUid) const;
 	Q_INVOKABLE QString uidPrefix() const;
 	Q_INVOKABLE void ensureGraphHistorySettings();
+	Q_INVOKABLE bool setGraphHistoryValue(const QString &channel, const QString &value);
 
 	// A portable service id has the format "com.victronenergy.<serviceType>/<deviceInstance"
 	Q_INVOKABLE QString serviceUidToPortableId(const QString &serviceUid, int deviceInstance) const;
@@ -214,6 +217,7 @@ private:
 	void setVrmPortalMode(VeQItemMqttProducer::VrmPortalMode backendVrmPortalMode);
 	void mqttErrorChanged();
 	void addSettings(VeQItemSettingsInfo *info);
+	void ensureGraphHistoryService(const QString &address);
 
 #if !defined(VENUS_WEBASSEMBLY_BUILD)
 	void initDBusConnection(const QString &address);
@@ -245,6 +249,7 @@ private:
 
 	QTimer *mRestartDelayTimer = nullptr;
 	bool m_graphHistorySettingsEnsured = false;
+	GraphHistoryService *m_graphHistoryService = nullptr;
 
 	VeQItemProducer *m_producer = nullptr;
 #if !defined(VENUS_WEBASSEMBLY_BUILD)
