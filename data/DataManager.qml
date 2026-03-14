@@ -83,19 +83,22 @@ Item {
 				? Math.max(Math.abs(_nonGeneratorInput.inputInfo.minimumCurrent), _nonGeneratorInput.inputInfo.maximumCurrent)
 				: NaN
 
-		readonly property ValueRange _ghSolarRange: ValueRange {
-			value: Global.system ? (Global.system.solar.power || NaN) : NaN
-			maximumValue: Global.system ? (Global.system.solar.maximumPower || NaN) : NaN
-		}
+		// Dynamic max tracking for channels whose Settings maximum may be NaN
+		property real _solarDynMax: NaN
+		property real _dcInputDynMax: NaN
+		property real _dcLoadDynMax: NaN
+		property real _acLoadDynMax: NaN
 
-		readonly property ValueRange _ghDcInputRange: ValueRange {
-			value: Global.dcInputs ? (Global.dcInputs.power || NaN) : NaN
-			maximumValue: Global.dcInputs ? (Global.dcInputs.maximumPower || NaN) : NaN
-		}
-
-		readonly property ValueRange _ghDcLoadRange: ValueRange {
-			value: Global.system ? (Global.system.dc.power || NaN) : NaN
-			maximumValue: Global.system ? (Global.system.dc.maximumPower || NaN) : NaN
+		function _ratioWithDynMax(value, settingsMax, dynMaxProp) {
+			if (isNaN(value) || value <= 0) return 0
+			if (!isNaN(settingsMax) && settingsMax > 0)
+				return Math.min(value / settingsMax, 1)
+			var currentMax = graphHistory[dynMaxProp]
+			if (isNaN(currentMax) || value > currentMax) {
+				graphHistory[dynMaxProp] = value
+				currentMax = value
+			}
+			return currentMax > 0 ? value / currentMax : 0
 		}
 
 		readonly property AcPhasesCurrentRange _acInputRange: AcPhasesCurrentRange {
@@ -142,7 +145,9 @@ Item {
 		}
 
 		function _sample() {
-			_solarSum += _ghSolarRange.valueAsRatio
+			var solarPower = Global.system ? (Global.system.solar.power || 0) : 0
+			var solarMax = Global.system ? (Global.system.solar.maximumPower || NaN) : NaN
+			_solarSum += _ratioWithDynMax(solarPower, solarMax, "_solarDynMax")
 			_solarAcc++
 			if (_solarAcc >= samplesPerPoint) {
 				_pushValue("solarModel", _solarSum / _solarAcc)
@@ -165,21 +170,27 @@ Item {
 				_acInputSum = 0; _acInputAcc = 0
 			}
 
-			_dcInputSum += _ghDcInputRange.valueAsRatio
+			var dcInPower = Global.dcInputs ? (Global.dcInputs.power || 0) : 0
+			var dcInMax = Global.dcInputs ? (Global.dcInputs.maximumPower || NaN) : NaN
+			_dcInputSum += _ratioWithDynMax(dcInPower, dcInMax, "_dcInputDynMax")
 			_dcInputAcc++
 			if (_dcInputAcc >= samplesPerPoint) {
 				_pushValue("dcInputModel", _dcInputSum / _dcInputAcc)
 				_dcInputSum = 0; _dcInputAcc = 0
 			}
 
-			_acLoadsSum += _acLoadRange.averagePhaseCurrentAsRatio
+			var acLoadCurrent = graphHistory._acLoadRange.averagePhaseCurrent || 0
+			var acLoadMax = Global.system ? Global.system.load.maximumAcCurrent : NaN
+			_acLoadsSum += _ratioWithDynMax(acLoadCurrent, acLoadMax, "_acLoadDynMax")
 			_acLoadsAcc++
 			if (_acLoadsAcc >= samplesPerPoint) {
 				_pushValue("acLoadsModel", _acLoadsSum / _acLoadsAcc)
 				_acLoadsSum = 0; _acLoadsAcc = 0
 			}
 
-			_dcLoadsSum += _ghDcLoadRange.valueAsRatio
+			var dcLoadPower = Global.system ? (Global.system.dc.power || 0) : 0
+			var dcLoadMax = Global.system ? (Global.system.dc.maximumPower || NaN) : NaN
+			_dcLoadsSum += _ratioWithDynMax(dcLoadPower, dcLoadMax, "_dcLoadDynMax")
 			_dcLoadsAcc++
 			if (_dcLoadsAcc >= samplesPerPoint) {
 				_pushValue("dcLoadsModel", _dcLoadsSum / _dcLoadsAcc)
