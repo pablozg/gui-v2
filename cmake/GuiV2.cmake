@@ -63,8 +63,7 @@ if (${VENUS_GX_BUILD})
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
 
-    install(FILES ${module_qml_files} ${module_qmldir} $<TARGET_FILE:${PROJECT_NAME}> DESTINATION ${CMAKE_INSTALL_BINDIR})
-    install(FILES $<TARGET_FILE:${PROJECT_NAME}> DESTINATION ${CMAKE_INSTALL_BINDIR} PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
+    install(FILES ${module_qml_files} ${module_qmldir} DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
 target_compile_definitions(${PROJECT_NAME}
