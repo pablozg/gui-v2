@@ -15,7 +15,6 @@ Item {
 			&& !!Global.environmentInputs
 			&& !!Global.evChargers
 			&& !!Global.generators
-			&& !!Global.graphHistory
 			&& !!Global.inverterChargers
 			&& !!Global.notifications
 			&& !!Global.solarInputs
@@ -55,7 +54,8 @@ Item {
 
 	// Persistent graph data collector — inline to avoid new type registration
 	// (deploy-to-gx copies QML files but cannot update the qmldir)
-	Item {
+	// Uses QtObject to avoid Item hierarchy issues on GX device
+	QtObject {
 		id: graphHistory
 
 		readonly property int modelLength: 120
@@ -83,26 +83,22 @@ Item {
 				? Math.max(Math.abs(_nonGeneratorInput.inputInfo.minimumCurrent), _nonGeneratorInput.inputInfo.maximumCurrent)
 				: NaN
 
-		ValueRange {
-			id: _ghSolarRange
+		readonly property ValueRange _ghSolarRange: ValueRange {
 			value: Global.system ? (Global.system.solar.power || NaN) : NaN
 			maximumValue: Global.system ? (Global.system.solar.maximumPower || NaN) : NaN
 		}
 
-		ValueRange {
-			id: _ghDcInputRange
+		readonly property ValueRange _ghDcInputRange: ValueRange {
 			value: Global.dcInputs ? (Global.dcInputs.power || NaN) : NaN
 			maximumValue: Global.dcInputs ? (Global.dcInputs.maximumPower || NaN) : NaN
 		}
 
-		ValueRange {
-			id: _ghDcLoadRange
+		readonly property ValueRange _ghDcLoadRange: ValueRange {
 			value: Global.system ? (Global.system.dc.power || NaN) : NaN
 			maximumValue: Global.system ? (Global.system.dc.maximumPower || NaN) : NaN
 		}
 
-		AcPhasesCurrentRange {
-			id: _acInputRange
+		readonly property AcPhasesCurrentRange _acInputRange: AcPhasesCurrentRange {
 			phaseModel: graphHistory._nonGeneratorInput ? graphHistory._nonGeneratorInput.phases : null
 			minimumCurrent: isNaN(graphHistory._acInputMaxAboveZeroMidPoint)
 				? (graphHistory._nonGeneratorInput ? graphHistory._nonGeneratorInput.inputInfo.minimumCurrent : 0)
@@ -112,8 +108,7 @@ Item {
 				: graphHistory._acInputMaxAboveZeroMidPoint
 		}
 
-		AcPhasesCurrentRange {
-			id: _acLoadRange
+		readonly property AcPhasesCurrentRange _acLoadRange: AcPhasesCurrentRange {
 			phaseModel: Global.system ? Global.system.load.ac.phases : null
 			maximumCurrent: Global.system ? Global.system.load.maximumAcCurrent : 0
 		}
@@ -146,68 +141,63 @@ Item {
 			_dirty = true
 		}
 
-		Timer {
-			running: Global.dataManagerLoaded
-			repeat: true
-			interval: 1000
-			onTriggered: {
-				graphHistory._solarSum += _ghSolarRange.valueAsRatio
-				graphHistory._solarAcc++
-				if (graphHistory._solarAcc >= graphHistory.samplesPerPoint) {
-					graphHistory._pushValue("solarModel", graphHistory._solarSum / graphHistory._solarAcc)
-					graphHistory._solarSum = 0; graphHistory._solarAcc = 0
-				}
+		function _sample() {
+			_solarSum += _ghSolarRange.valueAsRatio
+			_solarAcc++
+			if (_solarAcc >= samplesPerPoint) {
+				_pushValue("solarModel", _solarSum / _solarAcc)
+				_solarSum = 0; _solarAcc = 0
+			}
 
-				const graphMin = _acInputRange.minimumCurrent || 0
-				const graphMax = _acInputRange.maximumCurrent || 0
-				if (graphHistory._acPrevGraphMin !== graphMin || graphHistory._acPrevGraphMax !== graphMax) {
-					if (graphHistory._acPrevGraphMin !== 0 || graphHistory._acPrevGraphMax !== 0) {
-						graphHistory._scaleAcInputHistoricalData(graphHistory._acPrevGraphMin, graphHistory._acPrevGraphMax, graphMin, graphMax)
-					}
-					graphHistory._acPrevGraphMin = graphMin
-					graphHistory._acPrevGraphMax = graphMax
+			var graphMin = _acInputRange.minimumCurrent || 0
+			var graphMax = _acInputRange.maximumCurrent || 0
+			if (_acPrevGraphMin !== graphMin || _acPrevGraphMax !== graphMax) {
+				if (_acPrevGraphMin !== 0 || _acPrevGraphMax !== 0) {
+					_scaleAcInputHistoricalData(_acPrevGraphMin, _acPrevGraphMax, graphMin, graphMax)
 				}
-				graphHistory._acInputSum += _acInputRange.averagePhaseCurrentAsRatio
-				graphHistory._acInputAcc++
-				if (graphHistory._acInputAcc >= graphHistory.samplesPerPoint) {
-					graphHistory._pushValue("acInputModel", graphHistory._acInputSum / graphHistory._acInputAcc)
-					graphHistory._acInputSum = 0; graphHistory._acInputAcc = 0
-				}
+				_acPrevGraphMin = graphMin
+				_acPrevGraphMax = graphMax
+			}
+			_acInputSum += _acInputRange.averagePhaseCurrentAsRatio
+			_acInputAcc++
+			if (_acInputAcc >= samplesPerPoint) {
+				_pushValue("acInputModel", _acInputSum / _acInputAcc)
+				_acInputSum = 0; _acInputAcc = 0
+			}
 
-				graphHistory._dcInputSum += _ghDcInputRange.valueAsRatio
-				graphHistory._dcInputAcc++
-				if (graphHistory._dcInputAcc >= graphHistory.samplesPerPoint) {
-					graphHistory._pushValue("dcInputModel", graphHistory._dcInputSum / graphHistory._dcInputAcc)
-					graphHistory._dcInputSum = 0; graphHistory._dcInputAcc = 0
-				}
+			_dcInputSum += _ghDcInputRange.valueAsRatio
+			_dcInputAcc++
+			if (_dcInputAcc >= samplesPerPoint) {
+				_pushValue("dcInputModel", _dcInputSum / _dcInputAcc)
+				_dcInputSum = 0; _dcInputAcc = 0
+			}
 
-				graphHistory._acLoadsSum += _acLoadRange.averagePhaseCurrentAsRatio
-				graphHistory._acLoadsAcc++
-				if (graphHistory._acLoadsAcc >= graphHistory.samplesPerPoint) {
-					graphHistory._pushValue("acLoadsModel", graphHistory._acLoadsSum / graphHistory._acLoadsAcc)
-					graphHistory._acLoadsSum = 0; graphHistory._acLoadsAcc = 0
-				}
+			_acLoadsSum += _acLoadRange.averagePhaseCurrentAsRatio
+			_acLoadsAcc++
+			if (_acLoadsAcc >= samplesPerPoint) {
+				_pushValue("acLoadsModel", _acLoadsSum / _acLoadsAcc)
+				_acLoadsSum = 0; _acLoadsAcc = 0
+			}
 
-				graphHistory._dcLoadsSum += _ghDcLoadRange.valueAsRatio
-				graphHistory._dcLoadsAcc++
-				if (graphHistory._dcLoadsAcc >= graphHistory.samplesPerPoint) {
-					graphHistory._pushValue("dcLoadsModel", graphHistory._dcLoadsSum / graphHistory._dcLoadsAcc)
-					graphHistory._dcLoadsSum = 0; graphHistory._dcLoadsAcc = 0
-				}
+			_dcLoadsSum += _ghDcLoadRange.valueAsRatio
+			_dcLoadsAcc++
+			if (_dcLoadsAcc >= samplesPerPoint) {
+				_pushValue("dcLoadsModel", _dcLoadsSum / _dcLoadsAcc)
+				_dcLoadsSum = 0; _dcLoadsAcc = 0
 			}
 		}
 
-		VeQuickItem { id: _solarHistory; uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/solar" : "" }
-		VeQuickItem { id: _acInputHistory; uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/acInput" : "" }
-		VeQuickItem { id: _dcInputHistory; uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/dcInput" : "" }
-		VeQuickItem { id: _acLoadsHistory; uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/acLoads" : "" }
-		VeQuickItem { id: _dcLoadsHistory; uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/dcLoads" : "" }
+		readonly property VeQuickItem _solarHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/solar" : "" }
+		readonly property VeQuickItem _acInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/acInput" : "" }
+		readonly property VeQuickItem _dcInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/dcInput" : "" }
+		readonly property VeQuickItem _acLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/acLoads" : "" }
+		readonly property VeQuickItem _dcLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/dcLoads" : "" }
 
 		function _saveAll() {
 			if (!_dirty) return
 			function _save(item, model) {
 				if (!item || !item.uid) return
-				const rounded = model.map(function(v) { return Math.round(v * 10000) / 10000 })
+				var rounded = model.map(function(v) { return Math.round(v * 10000) / 10000 })
 				item.setValue(JSON.stringify(rounded))
 			}
 			_save(_solarHistory, solarModel)
@@ -222,7 +212,7 @@ Item {
 			function _restore(item, channelName) {
 				if (!item || !item.value) return
 				try {
-					const saved = JSON.parse(item.value)
+					var saved = JSON.parse(item.value)
 					if (Array.isArray(saved) && saved.length === graphHistory.modelLength) {
 						graphHistory[channelName] = saved
 					}
@@ -235,20 +225,26 @@ Item {
 			_restore(_dcLoadsHistory, "dcLoadsModel")
 		}
 
-		Timer {
+		readonly property Timer _sampleTimer: Timer {
+			running: Global.dataManagerLoaded
+			repeat: true; interval: 1000
+			onTriggered: graphHistory._sample()
+		}
+
+		readonly property Timer _saveTimer: Timer {
 			running: Global.dataManagerLoaded
 			repeat: true; interval: 60000
 			onTriggered: graphHistory._saveAll()
 		}
 
-		Timer {
-			id: _ghRestoreTimer; interval: 500
+		readonly property Timer _restoreTimer: Timer {
+			interval: 500
 			onTriggered: graphHistory._restoreAll()
 		}
 
 		Component.onCompleted: {
 			Global.graphHistory = graphHistory
-			_ghRestoreTimer.start()
+			_restoreTimer.start()
 		}
 		Component.onDestruction: _saveAll()
 	}
