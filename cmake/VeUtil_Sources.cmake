@@ -39,9 +39,13 @@ set(VEUTIL_MQTT_SOURCES
 
 SET(VEUTIL_DBUS_SOURCES
     src/veutil/inc/veutil/qt/ve_dbus_connection.hpp
+    src/veutil/inc/veutil/qt/ve_qitem_exported_dbus_services.hpp
     src/veutil/inc/veutil/qt/ve_qitems_dbus.hpp
 
     src/veutil/src/qt/ve_dbus_connection.cpp
+    src/veutil/src/qt/ve_qitem_exported_dbus_service.hpp
+    src/veutil/src/qt/ve_qitem_exported_dbus_service.cpp
+    src/veutil/src/qt/ve_qitem_exported_dbus_services.cpp
     src/veutil/src/qt/ve_qitems_dbus.cpp
 )
 

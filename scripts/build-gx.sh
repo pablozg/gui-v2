@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 # This script builds GUIv2 for a GX device
 # To install requirements for building the GUIv2, execute build-gx-install-requirements.sh once
 # For more informations and requirements see
@@ -90,16 +92,20 @@ cd "build-gx"
 cmake -DCMAKE_BUILD_TYPE=MinSizeRel ..
 
 cmake --build . --parallel $(nproc)
+
+if [[ ! -f "./bin/venus-gui-v2" ]]; then
+    echo
+    echo -e "\e[31m*** ERROR: Build completed without producing ./bin/venus-gui-v2 ***\e[0m"
+    echo "Any compiler or linker error shown above is the real cause."
+    echo "Files matching venus-gui-v2 in build-gx:"
+    find . -maxdepth 3 -type f -name 'venus-gui-v2*'
+    exit 1
+fi
+
 cmake --install .
 
-if [ $? -ne 0 ]; then
-    echo
-    echo -e "\e[31m*** ERROR: Build failed ***\e[0m"
-    exit 1
-else
-    echo
-    echo -e "\e[32m*** Build successful ***\e[0m"
-fi
+echo
+echo -e "\e[32m*** Build successful ***\e[0m"
 
 
 # Make sure, current path ends with build-gx
