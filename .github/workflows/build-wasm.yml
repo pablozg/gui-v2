@@ -2,11 +2,6 @@ name: build-wasm
 run-name: ${{ github.actor }} is building wasm file
 
 on:
-  push:
-    paths-ignore:
-      - '**/README.md'
-      - 'LICENSE.txt'
-      - 'docs/**'
   workflow_dispatch:
 
 concurrency:

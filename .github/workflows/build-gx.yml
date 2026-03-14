@@ -2,11 +2,6 @@ name: build-gx
 run-name: ${{ github.actor }} is building GX files
 
 on:
-  push:
-    paths-ignore:
-      - '**/README.md'
-      - 'LICENSE.txt'
-      - 'docs/**'
   workflow_dispatch:
     inputs:
       device_type:
