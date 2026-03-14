@@ -16,8 +16,8 @@ OverviewWidget {
 	enabled: systemLoadDevices.count > 1 || nonSystemLoadDevices.count > 0
 
 	quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Dc
-	quantityLabel.dataObject: Global.system.dc
-	overviewExtraDataObject: Global.system.dc
+	quantityLabel.dataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? Global.system.dc : null
+	overviewExtraDataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? Global.system.dc : null
 	overviewExtraIsAc: false
 
 	onClicked: {

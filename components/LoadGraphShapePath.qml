@@ -11,9 +11,7 @@ Shape {
 	id: root
 
 	property var model: []
-	readonly property int segWidth: width / Math.max((model.length - 2), 1)
-	readonly property int rc1x: 0.5*segWidth
-	readonly property int rc2x: 0.5*segWidth
+	readonly property real segWidth: width / Math.max((model.length - 2), 1)
 	property real offsetFraction: 0.0
 	property real offset: segWidth * offsetFraction
 	property alias strokeColor: shapePath.strokeColor
@@ -22,19 +20,23 @@ Shape {
 	property bool zeroCentered
 
 	property bool calculateMinYValue: false // calculate vs clamp
-	property list<real> yValues: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // length Theme.animation_loadGraph_model_length
+	property var yValues: []
 	property real minYValue: 0 // used to determine visibility for orange graphs, or clamp min value for blue graphs.
 
-	onModelChanged: {
-		const n = yValues.length
+	onModelChanged: _recalculate()
+	onHeightChanged: _recalculate()
+
+	function _recalculate() {
+		const n = model.length
+		if (n === 0 || height <= 0) return
+
 		const newYValues = FastUtils.calculateLoadGraphYValues(model, n, height)
 
 		if (calculateMinYValue) {
 			let tempMin = Theme.geometry_screen_height
-			for (let i = 0; i < n; ++i)  {
-				const currYV = newYValues[i]
-				if (currYV < tempMin) {
-					tempMin = currYV
+			for (let i = 0; i < n; ++i) {
+				if (newYValues[i] < tempMin) {
+					tempMin = newYValues[i]
 				}
 			}
 			yValues = newYValues
@@ -52,29 +54,50 @@ Shape {
 		}
 	}
 
+	// Dynamic SVG path rebuilt when data or offset changes
+	property string _svgPath: ""
+	onYValuesChanged: _updatePath()
+	onOffsetChanged: _updatePath()
+
+	function _updatePath() {
+		const n = yValues.length
+		if (n < 2 || width <= 0) { _svgPath = ""; return }
+
+		const sw = segWidth
+		const off = offset
+		const stw = shapePath.strokeWidth
+		const bottomY = zeroCentered ? height / 2 : (height + stw)
+
+		let d = "M 0 " + yValues[0].toFixed(1)
+
+		for (let i = 1; i < n; i++) {
+			const cpx = ((i - 0.5) * sw - off).toFixed(1)
+			const endx = (i * sw - off).toFixed(1)
+			d += " C " + cpx + " " + yValues[i-1].toFixed(1)
+				+ " " + cpx + " " + yValues[i].toFixed(1)
+				+ " " + endx + " " + yValues[i].toFixed(1)
+		}
+
+		// Close shape for fill gradient
+		const rEdge = (width + stw).toFixed(1)
+		const lEdge = (-stw).toFixed(1)
+		d += " L " + rEdge + " " + yValues[n - 1].toFixed(1)
+		d += " L " + rEdge + " " + bottomY.toFixed(1)
+		d += " L " + lEdge + " " + bottomY.toFixed(1)
+		d += " L " + lEdge + " " + yValues[0].toFixed(1)
+		d += " Z"
+
+		_svgPath = d
+	}
+
 	ShapePath {
 		id: shapePath
 
-		startX: 0
-		startY: yValues[0]
 		strokeWidth: 1
 
-		PathCubic { x: 1 * segWidth - offset; y: yValues[1]; relativeControl1X: rc1x - offset; control1Y: yValues[0]; relativeControl2X: rc2x - offset; control2Y: y; }
-		PathCubic { x: 2 * segWidth - offset; y: yValues[2]; relativeControl1X: rc1x; control1Y: yValues[1]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 3 * segWidth - offset; y: yValues[3]; relativeControl1X: rc1x; control1Y: yValues[2]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 4 * segWidth - offset; y: yValues[4]; relativeControl1X: rc1x; control1Y: yValues[3]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 5 * segWidth - offset; y: yValues[5]; relativeControl1X: rc1x; control1Y: yValues[4]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 6 * segWidth - offset; y: yValues[6]; relativeControl1X: rc1x; control1Y: yValues[5]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 7 * segWidth - offset; y: yValues[7]; relativeControl1X: rc1x; control1Y: yValues[6]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 8 * segWidth - offset; y: yValues[8]; relativeControl1X: rc1x; control1Y: yValues[7]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 9 * segWidth - offset; y: yValues[9]; relativeControl1X: rc1x; control1Y: yValues[8]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 10 * segWidth - offset; y: yValues[10]; relativeControl1X: rc1x; control1Y: yValues[9]; relativeControl2X: rc2x; control2Y: y; }
-		PathCubic { x: 11 * segWidth - offset; y: yValues[11]; relativeControl1X: rc1x; control1Y: yValues[10]; relativeControl2X: rc2x; control2Y: y; }
-
-		PathLine { x: root.width + root.strokeWidth; y: yValues[11] }
-		PathLine { x: root.width + root.strokeWidth; y: root.zeroCentered ? root.height/2 : (root.height + root.strokeWidth) }
-		PathLine { x: 0 - root.strokeWidth; y: root.zeroCentered ? root.height/2 : (root.height + root.strokeWidth) }
-		PathLine { x: 0 - root.strokeWidth; y: shapePath.startY}
+		PathSvg {
+			path: root._svgPath
+		}
 	}
 }
 

@@ -28,9 +28,25 @@ ColumnLayout {
 		quantityLabel.dataObject: Global.system.solar
 		extraDataObject: Global.system.solar
 		extraIsAc: false
-		sideComponent: SolarYieldGraph {
+		sideComponent: LoadGraph {
+			modelLength: 120
+			samplesPerPoint: 60
+			persistKey: "solar"
+			animationEnabled: root.animationEnabled
+			threshold: 0
+			aboveThresholdFillColor: "#FFD700"
+			onNextValueRequested: addValue(solarRange.valueAsRatio)
+		}
+
+		bottomComponent: SolarYieldGraph {
 			spacing: Theme.geometry_sidePanel_solar_graph_bar_spacing
 			maximumBarCount: Theme.geometry_sidePanel_solar_graph_bar_count
+		}
+
+		ValueRange {
+			id: solarRange
+			value: root.visible ? Global.system.solar.power : NaN
+			maximumValue: Global.system.solar.maximumPower
 		}
 	}
 
@@ -155,6 +171,9 @@ exported power v  0.4 |   /
 			}
 
 			animationEnabled: root.animationEnabled
+			modelLength: 120
+			samplesPerPoint: 60
+			persistKey: "acInput"
 			aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
 			belowThresholdFillColor: _graphShowsFeedIn ? Theme.color_green : Theme.color_blue
 			initialModelValue: _graphShowsFeedIn ? 0.5 : 0
@@ -228,6 +247,9 @@ exported power v  0.4 |   /
 		extraDataObject: Global.dcInputs
 		extraIsAc: false
 		sideComponent: LoadGraph {
+			modelLength: 120
+			samplesPerPoint: 60
+			persistKey: "dcInput"
 			animationEnabled: root.animationEnabled
 			threshold: 0    // no threshold needed for inputs
 			aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
@@ -272,6 +294,9 @@ exported power v  0.4 |   /
 		loadersActive: Global.system.hasAcLoads
 		visible: loadersActive
 		sideComponent: LoadGraph {
+			modelLength: 120
+			samplesPerPoint: 60
+			persistKey: "acLoads"
 			animationEnabled: root.animationEnabled
 			onNextValueRequested: addValue(acLoadGraphRange.averagePhaseCurrentAsRatio)
 
@@ -303,6 +328,9 @@ exported power v  0.4 |   /
 		extraDataObject: Global.system.dc
 		extraIsAc: false
 		sideComponent: LoadGraph {
+			modelLength: 120
+			samplesPerPoint: 60
+			persistKey: "dcLoads"
 			animationEnabled: root.animationEnabled
 			onNextValueRequested: addValue(dcLoadRange.valueAsRatio)
 		}

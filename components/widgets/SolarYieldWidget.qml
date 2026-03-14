@@ -27,8 +27,8 @@ OverviewWidget {
 	icon.source: "qrc:/images/solaryield.svg"
 	type: VenusOS.OverviewWidget_Type_Solar
 	enabled: true
-	quantityLabel.dataObject: Global.system.solar
-	overviewExtraDataObject: Global.system.solar
+	quantityLabel.dataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? Global.system.solar : null
+	overviewExtraDataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? Global.system.solar : null
 	overviewExtraIsAc: false
 	preferredSize: extraContentLoader.status !== Loader.Null
 			? VenusOS.OverviewWidget_PreferredSize_PreferLarge

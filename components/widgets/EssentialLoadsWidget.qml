@@ -13,8 +13,8 @@ AcWidget {
 	title: qsTrId("overview_widget_essential_loads_title")
 	icon.source: "qrc:/images/icon_CL_24.svg"
 	type: VenusOS.OverviewWidget_Type_EssentialLoads
-	quantityLabel.dataObject: Global.system.load.acOut
-	overviewExtraDataObject: Global.system.load.acOut
+	quantityLabel.dataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? Global.system.load.acOut : null
+	overviewExtraDataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? Global.system.load.acOut : null
 	overviewExtraIsAc: true
 	phaseCount: Global.system.load.acOut.phases.count
 	extraContentLoader.sourceComponent: ThreePhaseDisplay {

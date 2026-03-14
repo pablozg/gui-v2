@@ -17,8 +17,8 @@ AcWidget {
 	title: qsTrId("overview_widget_acloads_title")
 	icon.source: "qrc:/images/acloads.svg"
 	type: VenusOS.OverviewWidget_Type_AcLoads
-	quantityLabel.dataObject: root.measurements
-	overviewExtraDataObject: root.measurements
+	quantityLabel.dataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? root.measurements : null
+	overviewExtraDataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? root.measurements : null
 	overviewExtraIsAc: true
 	phaseCount: root.measurements.phases.count
 	extraContentLoader.sourceComponent: ThreePhaseDisplay {

@@ -22,22 +22,100 @@ Item {
 	property bool zeroCentered
 	property alias animationEnabled: graphAnimation.running
 
+	// Number of data points shown in the graph.
+	// Default 12 = original behavior. Set to 120 for 2-hour history at 1 point/min.
+	property int modelLength: Theme.animation_loadGraph_model_length
+
+	// Number of raw samples to average into one visual data point.
+	// Default 1 = original behavior (1 sample/point, 12 seconds visible).
+	// Set to 60 for 1-minute averaging (60 × 1s = 1 min per point).
+	property int samplesPerPoint: 1
+
+	// Persistence key. When set, the graph history is saved/restored via
+	// Settings/Gui/GraphHistory/<key> so it survives page reloads and
+	// remote console (WASM) reconnections.
+	property string persistKey: ""
+
 	signal nextValueRequested()
 
+	property int _accCount: 0
+	property real _accSum: 0.0
+	property bool _dirty: false
+
 	function addValue(value) {
+		if (samplesPerPoint <= 1) {
+			_pushValue(value)
+		} else {
+			_accSum += value
+			_accCount++
+			if (_accCount >= samplesPerPoint) {
+				_pushValue(_accSum / _accCount)
+				_accSum = 0.0
+				_accCount = 0
+			}
+		}
+	}
+
+	function _pushValue(value) {
 		let temp = model
 		temp.push(value)
 		temp.shift()
 		model = temp
+		_dirty = true
+	}
+
+	function _saveHistory() {
+		if (!persistKey || !_dirty || !_historyItem) return
+		// Compact JSON: round to 4 decimals to save space
+		const rounded = model.map(function(v) { return Math.round(v * 10000) / 10000 })
+		_historyItem.setValue(JSON.stringify(rounded))
+		_dirty = false
+	}
+
+	function _restoreHistory() {
+		if (!persistKey || !_historyItem || !_historyItem.value) return
+		try {
+			const saved = JSON.parse(_historyItem.value)
+			if (Array.isArray(saved) && saved.length === modelLength) {
+				model = saved
+			}
+		} catch(e) { /* ignore parse errors, start fresh */ }
+	}
+
+	// VeQuickItem for persisting graph data in Settings
+	property var _historyItem: persistKey ? _historyItemComponent.createObject(root) : null
+
+	Component {
+		id: _historyItemComponent
+		VeQuickItem {
+			uid: Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/" + root.persistKey
+		}
+	}
+
+	// Save every 60 seconds when data has changed
+	Timer {
+		running: root.persistKey !== "" && root.visible
+		repeat: true
+		interval: 60000
+		onTriggered: root._saveHistory()
 	}
 
 	clip: true // we have to clip if we don't use a layer in LoadGraphShapePath.
 	implicitWidth: Theme.geometry_briefPage_sidePanel_loadGraph_width
 	implicitHeight: Theme.geometry_briefPage_sidePanel_loadGraph_height
 
+	// Internal 1-second sampler for long-history mode
+	Timer {
+		id: longHistorySampler
+		running: root.samplesPerPoint > 1 && root.visible
+		repeat: true
+		interval: 1000
+		onTriggered: root.nextValueRequested()
+	}
+
 	Timer {
 		id: pausedAnimationTimer
-		running: !root.animationEnabled // even if !Global.timersEnabled, to avoid discontinuities
+		running: root.samplesPerPoint <= 1 && !root.animationEnabled // even if !Global.timersEnabled, to avoid discontinuities
 		repeat: true
 		interval: Theme.geometry_briefPage_sidePanel_loadGraph_intervalMs
 		onTriggered: {
@@ -50,6 +128,7 @@ Item {
 	SequentialAnimation {
 		id: graphAnimation
 
+		running: root.samplesPerPoint <= 1
 		loops: Animation.Infinite
 
 		NumberAnimation {
@@ -159,5 +238,19 @@ Item {
 		}
 	}
 
-	Component.onCompleted: model = Array(Theme.animation_loadGraph_model_length).fill(initialModelValue)
+	Component.onCompleted: {
+		model = Array(modelLength).fill(initialModelValue)
+		if (persistKey) {
+			// Delay restore slightly to ensure VeQuickItem has connected
+			_restoreTimer.start()
+		}
+	}
+
+	Component.onDestruction: _saveHistory()
+
+	Timer {
+		id: _restoreTimer
+		interval: 500
+		onTriggered: root._restoreHistory()
+	}
 }
