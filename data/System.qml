@@ -61,13 +61,23 @@ QtObject {
 		}
 	}
 
-	property QtObject solar: QtObject {
-		readonly property real power: Units.sumRealNumbers(acPower, dcPower)
-		readonly property real acPower: _pvMonitor.totalPower
-		readonly property real dcPower: _dcPvPower.valid ? _dcPvPower.value : NaN
-		readonly property real current: _dcPvCurrent.valid ? _dcPvCurrent.value : NaN
+	readonly property QtObject solar: QtObject {
+		id: solarData
+
+		property real power: NaN
+		property real acPower: NaN
+		property real dcPower: NaN
+		property real current: NaN
 		readonly property real voltage: NaN // Solar DC voltage is not aggregated by systemcalc
-		readonly property real maximumPower: _maximumPower.valid ? _maximumPower.value : NaN
+		property real maximumPower: NaN
+
+		function _refresh() {
+			acPower = _pvMonitor.totalPower
+			dcPower = _dcPvPower.valid ? _dcPvPower.value : NaN
+			current = _dcPvCurrent.valid ? _dcPvCurrent.value : NaN
+			maximumPower = _maximumPower.valid ? _maximumPower.value : NaN
+			power = Units.sumRealNumbers(acPower, dcPower)
+		}
 
 		readonly property VeQuickItem _maximumPower: VeQuickItem {
 			uid: Global.systemSettings.serviceUid + "/Settings/Gui/Gauges/Pv/Power/Max"
@@ -83,6 +93,58 @@ QtObject {
 
 		readonly property VeQuickItem _dcPvCurrent: VeQuickItem {
 			uid: root.serviceUid + "/Dc/Pv/Current"
+		}
+
+		readonly property Connections _pvMonitorConnection: Connections {
+			target: solarData._pvMonitor
+			function onTotalPowerChanged() {
+				solarData._refresh()
+			}
+		}
+
+		readonly property Connections _dcPvPowerConnection: Connections {
+			target: solarData._dcPvPower
+			function onValueChanged() {
+				solarData._refresh()
+			}
+			function onValidChanged() {
+				solarData._refresh()
+			}
+		}
+
+		readonly property Connections _dcPvCurrentConnection: Connections {
+			target: solarData._dcPvCurrent
+			function onValueChanged() {
+				solarData._refresh()
+			}
+			function onValidChanged() {
+				solarData._refresh()
+			}
+		}
+
+		readonly property Connections _maximumPowerConnection: Connections {
+			target: solarData._maximumPower
+			function onValueChanged() {
+				solarData._refresh()
+			}
+			function onValidChanged() {
+				solarData._refresh()
+			}
+		}
+
+		readonly property Timer _refreshTimer: Timer {
+			interval: 1000
+			repeat: true
+			running: Global.timersEnabled
+			onTriggered: {
+				solarData._pvMonitor._updateAcTotals()
+				solarData._refresh()
+			}
+		}
+
+		Component.onCompleted: {
+			_pvMonitor._updateAcTotals()
+			_refresh()
 		}
 	}
 

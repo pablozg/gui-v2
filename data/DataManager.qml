@@ -56,15 +56,16 @@ Item {
 	// Persistent graph data collector — inline to avoid new type registration
 	// (deploy-to-gx copies QML files but cannot update the qmldir)
 	// Uses QtObject to avoid Item hierarchy issues on GX device
-		QtObject {
-			id: graphHistory
+			QtObject {
+				id: graphHistory
 
-			readonly property int modelLength: 120
-			readonly property int samplesPerPoint: 60
+				readonly property int modelLength: 120
+				readonly property int samplesPerPoint: 60
+				readonly property int checkpointEveryPoints: 5
 
-			readonly property bool acInputShowsFeedIn: _acInputRange.minimumCurrent < 0
-			readonly property real acInputInitialModelValue: acInputShowsFeedIn ? 0.5 : 0
-			readonly property real acInputThreshold: isNaN(_acInputMaxAboveZeroMidPoint) ? 0 : 0.5
+				readonly property bool acInputShowsFeedIn: _acInputRange.minimumCurrent < 0
+				readonly property real acInputInitialModelValue: acInputShowsFeedIn ? 0.5 : 0
+				readonly property real acInputThreshold: isNaN(_acInputMaxAboveZeroMidPoint) ? 0 : 0.5
 
 			property var solarModel: _normalizedModel([], "solarModel")
 			property var acInputModel: _normalizedModel([], "acInputModel")
@@ -148,30 +149,45 @@ Item {
 				acInputModel = temp
 			}
 
-			property int _solarAcc: 0; property real _solarSum: 0
-			property int _acInputAcc: 0; property real _acInputSum: 0
-			property int _dcInputAcc: 0; property real _dcInputSum: 0
-			property int _acLoadsAcc: 0; property real _acLoadsSum: 0
-			property int _dcLoadsAcc: 0; property real _dcLoadsSum: 0
-			property bool _dirty: false
+				property int _solarAcc: 0; property real _solarSum: 0
+				property int _acInputAcc: 0; property real _acInputSum: 0
+				property int _dcInputAcc: 0; property real _dcInputSum: 0
+				property int _acLoadsAcc: 0; property real _acLoadsSum: 0
+				property int _dcLoadsAcc: 0; property real _dcLoadsSum: 0
+				property bool _dirty: false
+				property int _dirtyPointCount: 0
+				property bool _needsBootstrapCheckpoint: true
 
-			function _pushValue(channelName, value) {
-				let temp = _normalizedModel(graphHistory[channelName], channelName)
-				temp.push(value)
-				temp.shift()
-				graphHistory[channelName] = temp
-				_dirty = true
-			}
+				function _hasMeaningfulData(model, channelName) {
+					const initialValue = _initialValueForChannel(channelName)
+					const normalized = _normalizedModel(model, channelName)
+					for (let i = 0; i < normalized.length; ++i) {
+						if (Math.abs((normalized[i] ?? initialValue) - initialValue) > 0.0001) {
+							return true
+						}
+					}
+					return false
+				}
 
-		function _sample() {
-			var solarPower = Global.system ? (Global.system.solar.power || 0) : 0
-			var solarMax = Global.system ? (Global.system.solar.maximumPower || NaN) : NaN
-			_solarSum += _ratioWithDynMax(solarPower, solarMax, "_solarDynMax")
-			_solarAcc++
-			if (_solarAcc >= samplesPerPoint) {
-				_pushValue("solarModel", _solarSum / _solarAcc)
-				_solarSum = 0; _solarAcc = 0
-			}
+				function _pushValue(channelName, value) {
+					let temp = _normalizedModel(graphHistory[channelName], channelName)
+					temp.push(value)
+					temp.shift()
+					graphHistory[channelName] = temp
+					_dirty = true
+				}
+
+			function _sample() {
+				let pushedPoint = false
+				var solarPower = Global.system ? (Global.system.solar.power || 0) : 0
+				var solarMax = Global.system ? (Global.system.solar.maximumPower || NaN) : NaN
+				_solarSum += _ratioWithDynMax(solarPower, solarMax, "_solarDynMax")
+				_solarAcc++
+				if (_solarAcc >= samplesPerPoint) {
+					_pushValue("solarModel", _solarSum / _solarAcc)
+					pushedPoint = true
+					_solarSum = 0; _solarAcc = 0
+				}
 
 			var graphMin = _acInputRange.minimumCurrent || 0
 			var graphMax = _acInputRange.maximumCurrent || 0
@@ -182,40 +198,48 @@ Item {
 				_acPrevGraphMin = graphMin
 				_acPrevGraphMax = graphMax
 			}
-			_acInputSum += _acInputRange.averagePhaseCurrentAsRatio
-			_acInputAcc++
-			if (_acInputAcc >= samplesPerPoint) {
-				_pushValue("acInputModel", _acInputSum / _acInputAcc)
-				_acInputSum = 0; _acInputAcc = 0
-			}
+				_acInputSum += _acInputRange.averagePhaseCurrentAsRatio
+				_acInputAcc++
+				if (_acInputAcc >= samplesPerPoint) {
+					_pushValue("acInputModel", _acInputSum / _acInputAcc)
+					pushedPoint = true
+					_acInputSum = 0; _acInputAcc = 0
+				}
 
 			var dcInPower = Global.dcInputs ? (Global.dcInputs.power || 0) : 0
 			var dcInMax = Global.dcInputs ? (Global.dcInputs.maximumPower || NaN) : NaN
-			_dcInputSum += _ratioWithDynMax(dcInPower, dcInMax, "_dcInputDynMax")
-			_dcInputAcc++
-			if (_dcInputAcc >= samplesPerPoint) {
-				_pushValue("dcInputModel", _dcInputSum / _dcInputAcc)
-				_dcInputSum = 0; _dcInputAcc = 0
-			}
+				_dcInputSum += _ratioWithDynMax(dcInPower, dcInMax, "_dcInputDynMax")
+				_dcInputAcc++
+				if (_dcInputAcc >= samplesPerPoint) {
+					_pushValue("dcInputModel", _dcInputSum / _dcInputAcc)
+					pushedPoint = true
+					_dcInputSum = 0; _dcInputAcc = 0
+				}
 
 			var acLoadCurrent = graphHistory._acLoadRange.averagePhaseCurrent || 0
 			var acLoadMax = Global.system ? Global.system.load.maximumAcCurrent : NaN
-			_acLoadsSum += _ratioWithDynMax(acLoadCurrent, acLoadMax, "_acLoadDynMax")
-			_acLoadsAcc++
-			if (_acLoadsAcc >= samplesPerPoint) {
-				_pushValue("acLoadsModel", _acLoadsSum / _acLoadsAcc)
-				_acLoadsSum = 0; _acLoadsAcc = 0
-			}
+				_acLoadsSum += _ratioWithDynMax(acLoadCurrent, acLoadMax, "_acLoadDynMax")
+				_acLoadsAcc++
+				if (_acLoadsAcc >= samplesPerPoint) {
+					_pushValue("acLoadsModel", _acLoadsSum / _acLoadsAcc)
+					pushedPoint = true
+					_acLoadsSum = 0; _acLoadsAcc = 0
+				}
 
 			var dcLoadPower = Global.system ? (Global.system.dc.power || 0) : 0
 			var dcLoadMax = Global.system ? (Global.system.dc.maximumPower || NaN) : NaN
-			_dcLoadsSum += _ratioWithDynMax(dcLoadPower, dcLoadMax, "_dcLoadDynMax")
-			_dcLoadsAcc++
-			if (_dcLoadsAcc >= samplesPerPoint) {
-				_pushValue("dcLoadsModel", _dcLoadsSum / _dcLoadsAcc)
-				_dcLoadsSum = 0; _dcLoadsAcc = 0
+				_dcLoadsSum += _ratioWithDynMax(dcLoadPower, dcLoadMax, "_dcLoadDynMax")
+				_dcLoadsAcc++
+				if (_dcLoadsAcc >= samplesPerPoint) {
+					_pushValue("dcLoadsModel", _dcLoadsSum / _dcLoadsAcc)
+					pushedPoint = true
+					_dcLoadsSum = 0; _dcLoadsAcc = 0
+				}
+
+				if (pushedPoint) {
+					_dirtyPointCount++
+				}
 			}
-		}
 
 			readonly property VeQuickItem _solarHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/solar" : "" }
 			readonly property VeQuickItem _acInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acInput" : "" }
@@ -223,12 +247,13 @@ Item {
 			readonly property VeQuickItem _acLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acLoads" : "" }
 			readonly property VeQuickItem _dcLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcLoads" : "" }
 
-			function _saveAll() {
-				if (!_dirty) return
-				let allSaved = true
-				function _save(item, model, channelName) {
-					if (!item || !item.uid || !item.valid) {
-						allSaved = false
+				function _saveAll(force) {
+					if (!_dirty) return
+					if (!force && !_needsBootstrapCheckpoint && _dirtyPointCount < checkpointEveryPoints) return
+					let allSaved = true
+					function _save(item, model, channelName) {
+						if (!item || !item.uid || !item.valid) {
+							allSaved = false
 						return
 					}
 					var rounded = graphHistory._normalizedModel(model, channelName).map(function(v) {
@@ -238,28 +263,37 @@ Item {
 				}
 				_save(_solarHistory, solarModel, "solarModel")
 				_save(_acInputHistory, acInputModel, "acInputModel")
-				_save(_dcInputHistory, dcInputModel, "dcInputModel")
-				_save(_acLoadsHistory, acLoadsModel, "acLoadsModel")
-				_save(_dcLoadsHistory, dcLoadsModel, "dcLoadsModel")
-				_dirty = !allSaved
-			}
-
-			function _restoreAll() {
-				function _restore(item, channelName) {
-					if (!item || !item.valid || !item.value) return
-					try {
-						var saved = JSON.parse(item.value)
-						if (Array.isArray(saved) && saved.length > 0) {
-							graphHistory[channelName] = graphHistory._normalizedModel(saved, channelName)
-						}
-					} catch(e) { /* ignore */ }
+					_save(_dcInputHistory, dcInputModel, "dcInputModel")
+					_save(_acLoadsHistory, acLoadsModel, "acLoadsModel")
+					_save(_dcLoadsHistory, dcLoadsModel, "dcLoadsModel")
+					if (allSaved) {
+						_dirty = false
+						_dirtyPointCount = 0
+						_needsBootstrapCheckpoint = false
+					} else {
+						_dirty = true
+					}
 				}
-				_restore(_solarHistory, "solarModel")
-				_restore(_acInputHistory, "acInputModel")
-				_restore(_dcInputHistory, "dcInputModel")
-				_restore(_acLoadsHistory, "acLoadsModel")
-				_restore(_dcLoadsHistory, "dcLoadsModel")
-			}
+
+				function _restoreAll() {
+					let restoredMeaningfulData = false
+					function _restore(item, channelName) {
+						if (!item || !item.valid || !item.value) return
+						try {
+							var saved = JSON.parse(item.value)
+							if (Array.isArray(saved) && saved.length > 0) {
+								graphHistory[channelName] = graphHistory._normalizedModel(saved, channelName)
+								restoredMeaningfulData = graphHistory._hasMeaningfulData(saved, channelName) || restoredMeaningfulData
+							}
+						} catch(e) { /* ignore */ }
+					}
+					_restore(_solarHistory, "solarModel")
+					_restore(_acInputHistory, "acInputModel")
+					_restore(_dcInputHistory, "dcInputModel")
+					_restore(_acLoadsHistory, "acLoadsModel")
+					_restore(_dcLoadsHistory, "dcLoadsModel")
+					_needsBootstrapCheckpoint = !restoredMeaningfulData
+				}
 
 		readonly property Timer _sampleTimer: Timer {
 			running: Global.dataManagerLoaded
@@ -267,11 +301,11 @@ Item {
 			onTriggered: graphHistory._sample()
 		}
 
-		readonly property Timer _saveTimer: Timer {
-			running: Global.dataManagerLoaded
-			repeat: true; interval: 60000
-			onTriggered: graphHistory._saveAll()
-		}
+			readonly property Timer _saveTimer: Timer {
+				running: Global.dataManagerLoaded
+				repeat: true; interval: 60000
+				onTriggered: graphHistory._saveAll(false)
+			}
 
 			readonly property Timer _restoreTimer: Timer {
 				interval: 500
@@ -323,12 +357,21 @@ Item {
 				}
 			}
 
-			Component.onCompleted: {
-				Global.graphHistory = graphHistory
-				_restoreTimer.start()
-			}
-		Component.onDestruction: _saveAll()
-	}
+				readonly property Connections _appVisibilityConnection: Connections {
+					target: BackendConnection
+					function onApplicationVisibleChanged() {
+						if (!BackendConnection.applicationVisible) {
+							graphHistory._saveAll(true)
+						}
+					}
+				}
+
+				Component.onCompleted: {
+					Global.graphHistory = graphHistory
+					_restoreTimer.start()
+				}
+			Component.onDestruction: _saveAll(true)
+		}
 
 	Loader {
 		id: mockSetupLoader
