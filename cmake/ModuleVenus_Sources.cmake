@@ -294,7 +294,6 @@ set (VictronVenusOS_QML_MODULE_SOURCES
     data/Ess.qml
     data/EvChargers.qml
     data/Generators.qml
-    data/GraphHistory.qml
     data/InverterChargers.qml
     data/Notifications.qml
     data/SolarInputs.qml
