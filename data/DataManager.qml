@@ -15,6 +15,7 @@ Item {
 			&& !!Global.environmentInputs
 			&& !!Global.evChargers
 			&& !!Global.generators
+			&& !!Global.graphHistory
 			&& !!Global.inverterChargers
 			&& !!Global.notifications
 			&& !!Global.solarInputs
@@ -43,6 +44,7 @@ Item {
 	EnvironmentInputs {}
 	EvChargers {}
 	Generators {}
+	GraphHistory {}
 	InverterChargers {}
 	Notifications {}
 	SolarInputs {}

@@ -36,6 +36,10 @@ Item {
 	// remote console (WASM) reconnections.
 	property string persistKey: ""
 
+	// When true, the model is managed externally (e.g. by Global.graphHistory).
+	// Internal timers, sampling, and persistence are all disabled.
+	property bool externalSource: false
+
 	signal nextValueRequested()
 
 	property int _accCount: 0
@@ -94,7 +98,7 @@ Item {
 
 	// Save every 60 seconds when data has changed
 	Timer {
-		running: root.persistKey !== "" && root.visible
+		running: !root.externalSource && root.persistKey !== "" && root.visible
 		repeat: true
 		interval: 60000
 		onTriggered: root._saveHistory()
@@ -107,7 +111,7 @@ Item {
 	// Internal 1-second sampler for long-history mode
 	Timer {
 		id: longHistorySampler
-		running: root.samplesPerPoint > 1 && root.visible
+		running: !root.externalSource && root.samplesPerPoint > 1 && root.visible
 		repeat: true
 		interval: 1000
 		onTriggered: root.nextValueRequested()
@@ -115,7 +119,7 @@ Item {
 
 	Timer {
 		id: pausedAnimationTimer
-		running: root.samplesPerPoint <= 1 && !root.animationEnabled // even if !Global.timersEnabled, to avoid discontinuities
+		running: !root.externalSource && root.samplesPerPoint <= 1 && !root.animationEnabled // even if !Global.timersEnabled, to avoid discontinuities
 		repeat: true
 		interval: Theme.geometry_briefPage_sidePanel_loadGraph_intervalMs
 		onTriggered: {
@@ -128,7 +132,7 @@ Item {
 	SequentialAnimation {
 		id: graphAnimation
 
-		running: root.samplesPerPoint <= 1
+		running: !root.externalSource && root.samplesPerPoint <= 1
 		loops: Animation.Infinite
 
 		NumberAnimation {
@@ -239,14 +243,18 @@ Item {
 	}
 
 	Component.onCompleted: {
-		model = Array(modelLength).fill(initialModelValue)
-		if (persistKey) {
-			// Delay restore slightly to ensure VeQuickItem has connected
-			_restoreTimer.start()
+		if (!externalSource) {
+			model = Array(modelLength).fill(initialModelValue)
+			if (persistKey) {
+				// Delay restore slightly to ensure VeQuickItem has connected
+				_restoreTimer.start()
+			}
 		}
 	}
 
-	Component.onDestruction: _saveHistory()
+	Component.onDestruction: {
+		if (!externalSource) _saveHistory()
+	}
 
 	Timer {
 		id: _restoreTimer

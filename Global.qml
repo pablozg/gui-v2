@@ -34,6 +34,7 @@ QtObject {
 	property var environmentInputs
 	property var evChargers
 	property var generators
+	property var graphHistory
 	property var inverterChargers
 	property var notifications
 	property var solarInputs
@@ -84,6 +85,7 @@ QtObject {
 		environmentInputs = null
 		evChargers = null
 		generators = null
+		graphHistory = null
 		inverterChargers = null
 		notifications = null
 		solarInputs = null

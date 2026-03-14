@@ -29,24 +29,17 @@ ColumnLayout {
 		extraDataObject: Global.system.solar
 		extraIsAc: false
 		sideComponent: LoadGraph {
+			externalSource: true
+			model: Global.graphHistory ? Global.graphHistory.solarModel : []
 			modelLength: 120
-			samplesPerPoint: 60
-			persistKey: "solar"
 			animationEnabled: root.animationEnabled
 			threshold: 0
 			aboveThresholdFillColor: "#FFD700"
-			onNextValueRequested: addValue(solarRange.valueAsRatio)
 		}
 
 		bottomComponent: SolarYieldGraph {
 			spacing: Theme.geometry_sidePanel_solar_graph_bar_spacing
 			maximumBarCount: Theme.geometry_sidePanel_solar_graph_bar_count
-		}
-
-		ValueRange {
-			id: solarRange
-			value: root.visible ? Global.system.solar.power : NaN
-			maximumValue: Global.system.solar.maximumPower
 		}
 	}
 
@@ -119,105 +112,15 @@ ColumnLayout {
 		}
 
 		sideComponent: LoadGraph {
-			/*
-			This graph shows the current/amps that is imported/exported by the AC input. On a
-			multi-phase system, the graph shows the average current per phase.
-
-			If feed-in to grid is enabled, the graph shows imported and exported current, as in
-			Graph B. Otherwise, we only show imported current, as in Graph A.
-
-				   Graph A
-				   <Current>
-	Max current   1.0 |
-				  0.9 |
-				  0.8 |
-				  0.7 |
-				  0.6 |
-				  0.5 |
-				  0.4 |      ___________
-				  0.3 |     /           \_________        (only shows imported current. '_graphShowsFeedIn' is false)
-				  0.2 |____/
-imported power ^  0.1 |
-			 0W   0.0 |---------------------------> <Time>
-
-
-
-				   Graph B
-				   <Current>
-	Max current   1.0 |
-				  0.9 |
-				  0.8 |       ___________ (e.g. +60A)
-				  0.7 |      /           \_______
-imported power ^  0.6 |     /
-			  0W  0.5 |..../.......................       (shows imported and exported current. '_graphShowsFeedIn' is true)
-exported power v  0.4 |   /
-				  0.3 |__/  (e.g. -40A)
-				  0.2 |
-				  0.1 |
-	Min current   0.0 |----------------------------> <Time>
-			*/
-
-			readonly property bool _graphShowsFeedIn: acInputGraphRange.minimumCurrent < 0
-			property real _prevGraphMin
-			property real _prevGraphMax
-
-			function scaleHistoricalData(prevMin, prevMax, newMin, newMax) {
-				for (let i = 0; i < model.length; ++i) {
-					// Scale each amps value in the model from the old range to the new range.
-					const averagePhaseCurrentAsRatio = model[i]
-					const currentInAmps = FastUtils.scaleNumber(averagePhaseCurrentAsRatio, 0, 1, prevMin, prevMax)
-					model[i] = FastUtils.scaleNumber(currentInAmps, prevMin, prevMax, newMin, newMax)
-				}
-			}
-
-			animationEnabled: root.animationEnabled
+			externalSource: true
+			model: Global.graphHistory ? Global.graphHistory.acInputModel : []
 			modelLength: 120
-			samplesPerPoint: 60
-			persistKey: "acInput"
+			animationEnabled: root.animationEnabled
 			aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
-			belowThresholdFillColor: _graphShowsFeedIn ? Theme.color_green : Theme.color_blue
-			initialModelValue: _graphShowsFeedIn ? 0.5 : 0
-			zeroCentered: _graphShowsFeedIn
-
-			// For a system that only imports, no threshold is required.
-			// For a system that sometimes exports (i.e. can have values below zero), the threshold
-			// is the mid-point, which should be zero.
-			threshold: isNaN(acInputGraphRange.maximumAboveZeroMidPoint) ? 0 : 0.5
-
-			onNextValueRequested: {
-				const graphMin = acInputGraphRange.minimumCurrent || 0
-				const graphMax = acInputGraphRange.maximumCurrent || 0
-
-				if (_prevGraphMin !== graphMin || _prevGraphMax !== graphMax) {
-					// don't scale historical data if the prevMin=prevMax=0 i.e. uninitialized.
-					if (_prevGraphMin !== 0 || _prevGraphMax !== 0) {
-						scaleHistoricalData(_prevGraphMin, _prevGraphMax, graphMin, graphMax)
-					}
-					_prevGraphMin = graphMin
-					_prevGraphMax = graphMax
-				}
-				addValue(acInputGraphRange.averagePhaseCurrentAsRatio)
-			}
-
-			AcPhasesCurrentRange {
-				id: acInputGraphRange
-
-				// If the graph values may go below zero (i.e. it shows both import and export
-				// values) then use a min/max range that allows the mid-point to be zero. To do
-				// this, find the maximum range to be shown above or below the mid-point.
-				readonly property real maximumAboveZeroMidPoint: nonGeneratorInput.inputInfo.minimumCurrent < 0
-						&& nonGeneratorInput.inputInfo.maximumCurrent > 0
-					? Math.max(Math.abs(nonGeneratorInput.inputInfo.minimumCurrent), nonGeneratorInput.inputInfo.maximumCurrent)
-					: NaN
-
-				phaseModel: root.visible ? nonGeneratorInput.phases : null
-				minimumCurrent: isNaN(maximumAboveZeroMidPoint)
-								? nonGeneratorInput.inputInfo.minimumCurrent
-								: -maximumAboveZeroMidPoint
-				maximumCurrent: isNaN(maximumAboveZeroMidPoint)
-								? nonGeneratorInput.inputInfo.maximumCurrent
-								: maximumAboveZeroMidPoint
-			}
+			belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_blue
+			initialModelValue: Global.graphHistory ? Global.graphHistory.acInputInitialModelValue : 0
+			zeroCentered: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
+			threshold: Global.graphHistory ? Global.graphHistory.acInputThreshold : 0
 		}
 
 		bottomComponent: ThreePhaseBarGauge {
@@ -247,13 +150,12 @@ exported power v  0.4 |   /
 		extraDataObject: Global.dcInputs
 		extraIsAc: false
 		sideComponent: LoadGraph {
+			externalSource: true
+			model: Global.graphHistory ? Global.graphHistory.dcInputModel : []
 			modelLength: 120
-			samplesPerPoint: 60
-			persistKey: "dcInput"
 			animationEnabled: root.animationEnabled
 			threshold: 0    // no threshold needed for inputs
 			aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
-			onNextValueRequested: addValue(dcInputRange.valueAsRatio)
 		}
 
 		bottomComponent: Global.isGxDevice ? cheapGaugeDcInput : prettyGaugeDcInput
@@ -294,17 +196,10 @@ exported power v  0.4 |   /
 		loadersActive: Global.system.hasAcLoads
 		visible: loadersActive
 		sideComponent: LoadGraph {
+			externalSource: true
+			model: Global.graphHistory ? Global.graphHistory.acLoadsModel : []
 			modelLength: 120
-			samplesPerPoint: 60
-			persistKey: "acLoads"
 			animationEnabled: root.animationEnabled
-			onNextValueRequested: addValue(acLoadGraphRange.averagePhaseCurrentAsRatio)
-
-			AcPhasesCurrentRange {
-				id: acLoadGraphRange
-				phaseModel: root.visible ? Global.system.load.ac.phases : null
-				maximumCurrent: Global.system.load.maximumAcCurrent
-			}
 		}
 		bottomComponent: ThreePhaseBarGauge {
 			width: parent.width
@@ -328,11 +223,10 @@ exported power v  0.4 |   /
 		extraDataObject: Global.system.dc
 		extraIsAc: false
 		sideComponent: LoadGraph {
+			externalSource: true
+			model: Global.graphHistory ? Global.graphHistory.dcLoadsModel : []
 			modelLength: 120
-			samplesPerPoint: 60
-			persistKey: "dcLoads"
 			animationEnabled: root.animationEnabled
-			onNextValueRequested: addValue(dcLoadRange.valueAsRatio)
 		}
 
 		bottomComponent: Global.isGxDevice ? cheapGaugeDcLoad : prettyGaugeDcLoad
