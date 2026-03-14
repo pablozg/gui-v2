@@ -3,3 +3,4 @@ CMakeLists.txt.user.*
 src/themeobjects.h
 build/
 build-*/
+.deploy-password
