@@ -32,7 +32,7 @@ Item {
 	property int samplesPerPoint: 1
 
 	// Persistence key. When set, the graph history is saved/restored via
-	// Settings/Gui/GraphHistory/<key> so it survives page reloads and
+	// Settings/Gui2/GraphHistory/<key> so it survives page reloads and
 	// remote console (WASM) reconnections.
 	property string persistKey: ""
 
@@ -45,6 +45,19 @@ Item {
 	property int _accCount: 0
 	property real _accSum: 0.0
 	property bool _dirty: false
+
+	function _normalizedModel(data) {
+		if (!Array.isArray(data)) {
+			return Array(modelLength).fill(initialModelValue)
+		}
+		if (data.length === modelLength) {
+			return data.slice(0)
+		}
+		if (data.length > modelLength) {
+			return data.slice(data.length - modelLength)
+		}
+		return Array(modelLength - data.length).fill(initialModelValue).concat(data)
+	}
 
 	function addValue(value) {
 		if (samplesPerPoint <= 1) {
@@ -61,7 +74,7 @@ Item {
 	}
 
 	function _pushValue(value) {
-		let temp = model
+		let temp = _normalizedModel(model)
 		temp.push(value)
 		temp.shift()
 		model = temp
@@ -69,7 +82,7 @@ Item {
 	}
 
 	function _saveHistory() {
-		if (!persistKey || !_dirty || !_historyItem) return
+		if (!persistKey || !_dirty || !_historyItem || !_historyItem.valid) return
 		// Compact JSON: round to 4 decimals to save space
 		const rounded = model.map(function(v) { return Math.round(v * 10000) / 10000 })
 		_historyItem.setValue(JSON.stringify(rounded))
@@ -77,11 +90,11 @@ Item {
 	}
 
 	function _restoreHistory() {
-		if (!persistKey || !_historyItem || !_historyItem.value) return
+		if (!persistKey || !_historyItem || !_historyItem.valid || !_historyItem.value) return
 		try {
 			const saved = JSON.parse(_historyItem.value)
-			if (Array.isArray(saved) && saved.length === modelLength) {
-				model = saved
+			if (Array.isArray(saved) && saved.length > 0) {
+				model = _normalizedModel(saved)
 			}
 		} catch(e) { /* ignore parse errors, start fresh */ }
 	}
@@ -90,11 +103,11 @@ Item {
 	property var _historyItem: persistKey ? _historyItemComponent.createObject(root) : null
 
 	Component {
-		id: _historyItemComponent
-		VeQuickItem {
-			uid: Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/" + root.persistKey
+			id: _historyItemComponent
+			VeQuickItem {
+				uid: Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/" + root.persistKey
+			}
 		}
-	}
 
 	// Save every 60 seconds when data has changed
 	Timer {
@@ -242,15 +255,15 @@ Item {
 		}
 	}
 
-	Component.onCompleted: {
-		if (!externalSource) {
-			model = Array(modelLength).fill(initialModelValue)
-			if (persistKey) {
-				// Delay restore slightly to ensure VeQuickItem has connected
-				_restoreTimer.start()
+		Component.onCompleted: {
+			if (!externalSource) {
+				model = _normalizedModel([])
+				if (persistKey) {
+					// Delay restore slightly to ensure VeQuickItem has connected
+					_restoreTimer.start()
+				}
 			}
 		}
-	}
 
 	Component.onDestruction: {
 		if (!externalSource) _saveHistory()

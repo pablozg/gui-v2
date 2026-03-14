@@ -165,6 +165,7 @@ public:
 	Q_INVOKABLE QString serviceUidFromName(const QString &serviceName, int deviceInstance) const;
 	Q_INVOKABLE QString serviceUidFromUid(const QString &fullUid) const;
 	Q_INVOKABLE QString uidPrefix() const;
+	Q_INVOKABLE void ensureGraphHistorySettings();
 
 	// A portable service id has the format "com.victronenergy.<serviceType>/<deviceInstance"
 	Q_INVOKABLE QString serviceUidToPortableId(const QString &serviceUid, int deviceInstance) const;
@@ -243,6 +244,7 @@ private:
 	QMqttClient::ClientError m_mqttClientError = QMqttClient::NoError;
 
 	QTimer *mRestartDelayTimer = nullptr;
+	bool m_graphHistorySettingsEnsured = false;
 
 	VeQItemProducer *m_producer = nullptr;
 #if !defined(VENUS_WEBASSEMBLY_BUILD)

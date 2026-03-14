@@ -11,6 +11,8 @@
 #if defined(VENUS_WEBASSEMBLY_BUILD)
 #include <emscripten.h>
 #else
+#include <QtDBus/QDBusInterface>
+#include <QtDBus/QDBusMessage>
 #include "veutil/qt/ve_dbus_connection.hpp"
 #include "veutil/qt/ve_qitems_dbus.hpp"
 #endif
@@ -667,6 +669,58 @@ QUrl BackendConnection::demoImageFileName() const
 	static const QUrl filePath = QUrl::fromLocalFile("/data/demo-brief.png");
 	static const bool fileExists = QFile::exists(filePath.toLocalFile());
 	return fileExists ? filePath : QUrl();
+}
+
+void BackendConnection::ensureGraphHistorySettings()
+{
+#if defined(VENUS_WEBASSEMBLY_BUILD)
+	return;
+#else
+	if (m_graphHistorySettingsEnsured || m_type != DBusSource) {
+		return;
+	}
+
+	const QDBusConnection dbus = VeDbusConnection::getConnection();
+	if (!dbus.isConnected()) {
+		qWarning() << "Graph history settings: D-Bus connection is not available";
+		return;
+	}
+
+	QDBusInterface settingsInterface(
+			QStringLiteral("com.victronenergy.settings"),
+			QStringLiteral("/Settings"),
+			QStringLiteral("com.victronenergy.BusItem"),
+			dbus);
+	if (!settingsInterface.isValid()) {
+		qWarning() << "Graph history settings: unable to access com.victronenergy.settings /Settings";
+		return;
+	}
+
+	QVariantList settings;
+	const QStringList settingPaths {
+		QStringLiteral("Gui2/GraphHistory/solar"),
+		QStringLiteral("Gui2/GraphHistory/acInput"),
+		QStringLiteral("Gui2/GraphHistory/dcInput"),
+		QStringLiteral("Gui2/GraphHistory/acLoads"),
+		QStringLiteral("Gui2/GraphHistory/dcLoads"),
+	};
+
+	for (const QString &path : settingPaths) {
+		QVariantMap setting;
+		setting.insert(QStringLiteral("path"), path);
+		setting.insert(QStringLiteral("default"), QString());
+		setting.insert(QStringLiteral("silent"), true);
+		settings.append(setting);
+	}
+
+	const QDBusMessage reply = settingsInterface.call(QStringLiteral("AddSettings"), settings);
+	if (reply.type() == QDBusMessage::ErrorMessage) {
+		qWarning() << "Graph history settings: AddSettings failed:" << reply.errorName() << reply.errorMessage();
+		return;
+	}
+
+	m_graphHistorySettingsEnsured = true;
+#endif
 }
 
 VeQItemProducer *BackendConnection::producer() const

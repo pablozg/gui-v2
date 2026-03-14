@@ -25,6 +25,7 @@ Shape {
 
 	onModelChanged: _recalculate()
 	onHeightChanged: _recalculate()
+	onWidthChanged: _updatePath()
 
 	function _recalculate() {
 		const n = model.length
@@ -100,4 +101,3 @@ Shape {
 		}
 	}
 }
-

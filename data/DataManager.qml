@@ -32,6 +32,7 @@ Item {
 	on_DataObjectsReadyChanged: if (_dataObjectsReady) console.info("DataManager: data objects ready")
 	on_ReadyChanged: {
 		if (_ready) {
+			BackendConnection.ensureGraphHistorySettings()
 			console.info("DataManager: loading complete")
 			Global.dataManagerLoaded = true
 		}
@@ -55,21 +56,21 @@ Item {
 	// Persistent graph data collector — inline to avoid new type registration
 	// (deploy-to-gx copies QML files but cannot update the qmldir)
 	// Uses QtObject to avoid Item hierarchy issues on GX device
-	QtObject {
-		id: graphHistory
+		QtObject {
+			id: graphHistory
 
-		readonly property int modelLength: 120
-		readonly property int samplesPerPoint: 60
+			readonly property int modelLength: 120
+			readonly property int samplesPerPoint: 60
 
-		property var solarModel: Array(modelLength).fill(0)
-		property var acInputModel: Array(modelLength).fill(0)
-		property var dcInputModel: Array(modelLength).fill(0)
-		property var acLoadsModel: Array(modelLength).fill(0)
-		property var dcLoadsModel: Array(modelLength).fill(0)
+			readonly property bool acInputShowsFeedIn: _acInputRange.minimumCurrent < 0
+			readonly property real acInputInitialModelValue: acInputShowsFeedIn ? 0.5 : 0
+			readonly property real acInputThreshold: isNaN(_acInputMaxAboveZeroMidPoint) ? 0 : 0.5
 
-		readonly property bool acInputShowsFeedIn: _acInputRange.minimumCurrent < 0
-		readonly property real acInputInitialModelValue: acInputShowsFeedIn ? 0.5 : 0
-		readonly property real acInputThreshold: isNaN(_acInputMaxAboveZeroMidPoint) ? 0 : 0.5
+			property var solarModel: _normalizedModel([], "solarModel")
+			property var acInputModel: _normalizedModel([], "acInputModel")
+			property var dcInputModel: _normalizedModel([], "dcInputModel")
+			property var acLoadsModel: _normalizedModel([], "acLoadsModel")
+			property var dcLoadsModel: _normalizedModel([], "dcLoadsModel")
 
 		readonly property var _nonGeneratorInput: Global.acInputs
 			? (Global.acInputs.input1?.source !== VenusOS.AcInputs_InputSource_Generator ? Global.acInputs.input1
@@ -83,17 +84,35 @@ Item {
 				? Math.max(Math.abs(_nonGeneratorInput.inputInfo.minimumCurrent), _nonGeneratorInput.inputInfo.maximumCurrent)
 				: NaN
 
-		// Dynamic max tracking for channels whose Settings maximum may be NaN
-		property real _solarDynMax: NaN
-		property real _dcInputDynMax: NaN
-		property real _dcLoadDynMax: NaN
-		property real _acLoadDynMax: NaN
+			// Dynamic max tracking for channels whose Settings maximum may be NaN
+			property real _solarDynMax: NaN
+			property real _dcInputDynMax: NaN
+			property real _dcLoadDynMax: NaN
+			property real _acLoadDynMax: NaN
 
-		function _ratioWithDynMax(value, settingsMax, dynMaxProp) {
-			if (isNaN(value) || value <= 0) return 0
-			if (!isNaN(settingsMax) && settingsMax > 0)
-				return Math.min(value / settingsMax, 1)
-			var currentMax = graphHistory[dynMaxProp]
+			function _initialValueForChannel(channelName) {
+				return channelName === "acInputModel" ? acInputInitialModelValue : 0
+			}
+
+			function _normalizedModel(data, channelName) {
+				const initialValue = _initialValueForChannel(channelName)
+				if (!Array.isArray(data)) {
+					return Array(modelLength).fill(initialValue)
+				}
+				if (data.length === modelLength) {
+					return data.slice(0)
+				}
+				if (data.length > modelLength) {
+					return data.slice(data.length - modelLength)
+				}
+				return Array(modelLength - data.length).fill(initialValue).concat(data)
+			}
+
+			function _ratioWithDynMax(value, settingsMax, dynMaxProp) {
+				if (isNaN(value) || value <= 0) return 0
+				if (!isNaN(settingsMax) && settingsMax > 0)
+					return Math.min(value / settingsMax, 1)
+				var currentMax = graphHistory[dynMaxProp]
 			if (isNaN(currentMax) || value > currentMax) {
 				graphHistory[dynMaxProp] = value
 				currentMax = value
@@ -116,33 +135,33 @@ Item {
 			maximumCurrent: Global.system ? Global.system.load.maximumAcCurrent : 0
 		}
 
-		property real _acPrevGraphMin: 0
-		property real _acPrevGraphMax: 0
+			property real _acPrevGraphMin: 0
+			property real _acPrevGraphMax: 0
 
-		function _scaleAcInputHistoricalData(prevMin, prevMax, newMin, newMax) {
-			let temp = acInputModel
-			for (let i = 0; i < temp.length; ++i) {
-				const ratio = temp[i]
-				const currentInAmps = FastUtils.scaleNumber(ratio, 0, 1, prevMin, prevMax)
-				temp[i] = FastUtils.scaleNumber(currentInAmps, prevMin, prevMax, newMin, newMax)
+			function _scaleAcInputHistoricalData(prevMin, prevMax, newMin, newMax) {
+				let temp = _normalizedModel(acInputModel, "acInputModel")
+				for (let i = 0; i < temp.length; ++i) {
+					const ratio = temp[i]
+					const currentInAmps = FastUtils.scaleNumber(ratio, 0, 1, prevMin, prevMax)
+					temp[i] = FastUtils.scaleNumber(currentInAmps, prevMin, prevMax, newMin, newMax)
+				}
+				acInputModel = temp
 			}
-			acInputModel = temp
-		}
 
-		property int _solarAcc: 0; property real _solarSum: 0
-		property int _acInputAcc: 0; property real _acInputSum: 0
-		property int _dcInputAcc: 0; property real _dcInputSum: 0
-		property int _acLoadsAcc: 0; property real _acLoadsSum: 0
-		property int _dcLoadsAcc: 0; property real _dcLoadsSum: 0
-		property bool _dirty: false
+			property int _solarAcc: 0; property real _solarSum: 0
+			property int _acInputAcc: 0; property real _acInputSum: 0
+			property int _dcInputAcc: 0; property real _dcInputSum: 0
+			property int _acLoadsAcc: 0; property real _acLoadsSum: 0
+			property int _dcLoadsAcc: 0; property real _dcLoadsSum: 0
+			property bool _dirty: false
 
-		function _pushValue(channelName, value) {
-			let temp = graphHistory[channelName]
-			temp.push(value)
-			temp.shift()
-			graphHistory[channelName] = temp
-			_dirty = true
-		}
+			function _pushValue(channelName, value) {
+				let temp = _normalizedModel(graphHistory[channelName], channelName)
+				temp.push(value)
+				temp.shift()
+				graphHistory[channelName] = temp
+				_dirty = true
+			}
 
 		function _sample() {
 			var solarPower = Global.system ? (Global.system.solar.power || 0) : 0
@@ -198,43 +217,49 @@ Item {
 			}
 		}
 
-		readonly property VeQuickItem _solarHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/solar" : "" }
-		readonly property VeQuickItem _acInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/acInput" : "" }
-		readonly property VeQuickItem _dcInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/dcInput" : "" }
-		readonly property VeQuickItem _acLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/acLoads" : "" }
-		readonly property VeQuickItem _dcLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/GraphHistory/dcLoads" : "" }
+			readonly property VeQuickItem _solarHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/solar" : "" }
+			readonly property VeQuickItem _acInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acInput" : "" }
+			readonly property VeQuickItem _dcInputHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcInput" : "" }
+			readonly property VeQuickItem _acLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acLoads" : "" }
+			readonly property VeQuickItem _dcLoadsHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcLoads" : "" }
 
-		function _saveAll() {
-			if (!_dirty) return
-			function _save(item, model) {
-				if (!item || !item.uid) return
-				var rounded = model.map(function(v) { return Math.round(v * 10000) / 10000 })
-				item.setValue(JSON.stringify(rounded))
-			}
-			_save(_solarHistory, solarModel)
-			_save(_acInputHistory, acInputModel)
-			_save(_dcInputHistory, dcInputModel)
-			_save(_acLoadsHistory, acLoadsModel)
-			_save(_dcLoadsHistory, dcLoadsModel)
-			_dirty = false
-		}
-
-		function _restoreAll() {
-			function _restore(item, channelName) {
-				if (!item || !item.value) return
-				try {
-					var saved = JSON.parse(item.value)
-					if (Array.isArray(saved) && saved.length === graphHistory.modelLength) {
-						graphHistory[channelName] = saved
+			function _saveAll() {
+				if (!_dirty) return
+				let allSaved = true
+				function _save(item, model, channelName) {
+					if (!item || !item.uid || !item.valid) {
+						allSaved = false
+						return
 					}
-				} catch(e) { /* ignore */ }
+					var rounded = graphHistory._normalizedModel(model, channelName).map(function(v) {
+						return Math.round(v * 10000) / 10000
+					})
+					item.setValue(JSON.stringify(rounded))
+				}
+				_save(_solarHistory, solarModel, "solarModel")
+				_save(_acInputHistory, acInputModel, "acInputModel")
+				_save(_dcInputHistory, dcInputModel, "dcInputModel")
+				_save(_acLoadsHistory, acLoadsModel, "acLoadsModel")
+				_save(_dcLoadsHistory, dcLoadsModel, "dcLoadsModel")
+				_dirty = !allSaved
 			}
-			_restore(_solarHistory, "solarModel")
-			_restore(_acInputHistory, "acInputModel")
-			_restore(_dcInputHistory, "dcInputModel")
-			_restore(_acLoadsHistory, "acLoadsModel")
-			_restore(_dcLoadsHistory, "dcLoadsModel")
-		}
+
+			function _restoreAll() {
+				function _restore(item, channelName) {
+					if (!item || !item.valid || !item.value) return
+					try {
+						var saved = JSON.parse(item.value)
+						if (Array.isArray(saved) && saved.length > 0) {
+							graphHistory[channelName] = graphHistory._normalizedModel(saved, channelName)
+						}
+					} catch(e) { /* ignore */ }
+				}
+				_restore(_solarHistory, "solarModel")
+				_restore(_acInputHistory, "acInputModel")
+				_restore(_dcInputHistory, "dcInputModel")
+				_restore(_acLoadsHistory, "acLoadsModel")
+				_restore(_dcLoadsHistory, "dcLoadsModel")
+			}
 
 		readonly property Timer _sampleTimer: Timer {
 			running: Global.dataManagerLoaded
@@ -248,15 +273,60 @@ Item {
 			onTriggered: graphHistory._saveAll()
 		}
 
-		readonly property Timer _restoreTimer: Timer {
-			interval: 500
-			onTriggered: graphHistory._restoreAll()
-		}
+			readonly property Timer _restoreTimer: Timer {
+				interval: 500
+				onTriggered: graphHistory._restoreAll()
+			}
 
-		Component.onCompleted: {
-			Global.graphHistory = graphHistory
-			_restoreTimer.start()
-		}
+			readonly property Connections _solarHistoryConnection: Connections {
+				target: graphHistory._solarHistory
+				function onValidChanged() {
+					if (graphHistory._solarHistory.valid) {
+						graphHistory._restoreAll()
+					}
+				}
+			}
+
+			readonly property Connections _acInputHistoryConnection: Connections {
+				target: graphHistory._acInputHistory
+				function onValidChanged() {
+					if (graphHistory._acInputHistory.valid) {
+						graphHistory._restoreAll()
+					}
+				}
+			}
+
+			readonly property Connections _dcInputHistoryConnection: Connections {
+				target: graphHistory._dcInputHistory
+				function onValidChanged() {
+					if (graphHistory._dcInputHistory.valid) {
+						graphHistory._restoreAll()
+					}
+				}
+			}
+
+			readonly property Connections _acLoadsHistoryConnection: Connections {
+				target: graphHistory._acLoadsHistory
+				function onValidChanged() {
+					if (graphHistory._acLoadsHistory.valid) {
+						graphHistory._restoreAll()
+					}
+				}
+			}
+
+			readonly property Connections _dcLoadsHistoryConnection: Connections {
+				target: graphHistory._dcLoadsHistory
+				function onValidChanged() {
+					if (graphHistory._dcLoadsHistory.valid) {
+						graphHistory._restoreAll()
+					}
+				}
+			}
+
+			Component.onCompleted: {
+				Global.graphHistory = graphHistory
+				_restoreTimer.start()
+			}
 		Component.onDestruction: _saveAll()
 	}
 
