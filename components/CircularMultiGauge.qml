@@ -22,6 +22,7 @@ Item {
 	readonly property color _socWarmColor: Theme.color_orange
 	readonly property color _socMidColor: Qt.rgba(0.96, 0.84, 0.25, 1.0)
 	readonly property color _socEndColor: Theme.color_green
+	readonly property color _socTrackColor: Theme.color_darkishBlue
 
 	function _mixColors(colorA, colorB, amount) {
 		const t = Math.max(0, Math.min(amount, 1))
@@ -91,26 +92,19 @@ Item {
 							return startAngle + (_angleDirection * _sweepAngle * t)
 						}
 
-						Repeater {
-							model: batteryArc._segmentCount
-							delegate: Shape {
-								required property int index
-								readonly property real startFraction: index / batteryArc._segmentCount
-								readonly property real endFraction: (index + 1) / batteryArc._segmentCount
-								x: 0
-								y: 0
-								width: loader.width
-								height: loader.height
-								opacity: 0.28
+						Shape {
+							x: 0
+							y: 0
+							width: loader.width
+							height: loader.height
 
-								Arc {
-									radius: batteryArc.radius
-									startAngle: batteryArc._angleForFraction(startFraction)
-									endAngle: batteryArc._angleForFraction(endFraction)
-									strokeWidth: batteryArc.strokeWidth
-									strokeColor: gauges._gradientColorAt((startFraction + endFraction) / 2)
-									fillColor: "transparent"
-								}
+							Arc {
+								radius: batteryArc.radius
+								startAngle: batteryArc.startAngle
+								endAngle: batteryArc.endAngle
+								strokeWidth: batteryArc.strokeWidth
+								strokeColor: gauges._socTrackColor
+								fillColor: "transparent"
 							}
 						}
 
