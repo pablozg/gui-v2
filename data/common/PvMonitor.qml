@@ -20,7 +20,7 @@ Instantiator {
 		for (let i = 0; i < count; ++i) {
 			const acPv = objectAt(i)
 			if (!!acPv) {
-				_totalPower = Units.sumRealNumbers(_totalPower, acPv.power)
+				_totalPower = Units.sumRealNumbers(_totalPower, acPv.totalPhasePower())
 			}
 		}
 		root.totalPower = _totalPower

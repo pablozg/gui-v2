@@ -135,7 +135,7 @@ QtObject {
 		readonly property Timer _refreshTimer: Timer {
 			interval: 1000
 			repeat: true
-			running: Global.timersEnabled
+			running: BackendConnection.applicationVisible
 			onTriggered: {
 				solarData._pvMonitor._updateAcTotals()
 				solarData._refresh()

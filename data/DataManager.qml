@@ -63,7 +63,8 @@ Item {
 				readonly property int samplesPerPoint: 60
 				readonly property int checkpointEveryPoints: 720
 
-				readonly property bool acInputShowsFeedIn: _acInputRange.minimumCurrent < 0
+				readonly property bool acInputShowsFeedIn: _nonGeneratorInput
+						&& _nonGeneratorInput.inputInfo.minimumCurrent < 0
 				readonly property real acInputInitialModelValue: acInputShowsFeedIn ? 0.5 : 0
 				readonly property real acInputThreshold: isNaN(_acInputMaxAboveZeroMidPoint) ? 0 : 0.5
 				readonly property bool _publishesRuntimeHistory: BackendConnection.type === BackendConnection.DBusSource
@@ -118,31 +119,16 @@ Item {
 				if (isNaN(value) || value <= 0) return 0
 				if (!isNaN(settingsMax) && settingsMax > 0)
 					return Math.min(value / settingsMax, 1)
-				var currentMax = graphHistory[dynMaxProp]
-			if (isNaN(currentMax) || value > currentMax) {
-				graphHistory[dynMaxProp] = value
-				currentMax = value
-			}
-			return currentMax > 0 ? value / currentMax : 0
-		}
+					var currentMax = graphHistory[dynMaxProp]
+					if (isNaN(currentMax) || value > currentMax) {
+						graphHistory[dynMaxProp] = value
+						currentMax = value
+					}
+					return currentMax > 0 ? value / currentMax : 0
+				}
 
-		readonly property AcPhasesCurrentRange _acInputRange: AcPhasesCurrentRange {
-			phaseModel: graphHistory._nonGeneratorInput ? graphHistory._nonGeneratorInput.phases : null
-			minimumCurrent: isNaN(graphHistory._acInputMaxAboveZeroMidPoint)
-				? (graphHistory._nonGeneratorInput ? graphHistory._nonGeneratorInput.inputInfo.minimumCurrent : 0)
-				: -graphHistory._acInputMaxAboveZeroMidPoint
-			maximumCurrent: isNaN(graphHistory._acInputMaxAboveZeroMidPoint)
-				? (graphHistory._nonGeneratorInput ? graphHistory._nonGeneratorInput.inputInfo.maximumCurrent : 0)
-				: graphHistory._acInputMaxAboveZeroMidPoint
-		}
-
-		readonly property AcPhasesCurrentRange _acLoadRange: AcPhasesCurrentRange {
-			phaseModel: Global.system ? Global.system.load.ac.phases : null
-			maximumCurrent: Global.system ? Global.system.load.maximumAcCurrent : 0
-		}
-
-			property real _acPrevGraphMin: 0
-			property real _acPrevGraphMax: 0
+				property real _acPrevGraphMin: 0
+				property real _acPrevGraphMax: 0
 
 			function _scaleAcInputHistoricalData(prevMin, prevMax, newMin, newMax) {
 				let temp = _normalizedModel(acInputModel, "acInputModel")
@@ -250,7 +236,10 @@ Item {
 
 			function _sample() {
 				let pushedPoint = false
-				var solarPower = Global.system ? (Global.system.solar.power || 0) : 0
+				var solarPower = Global.system ? (Global.system.solar.power ?? NaN) : NaN
+				if (isNaN(solarPower)) {
+					solarPower = 0
+				}
 				var solarMax = Global.system ? (Global.system.solar.maximumPower || NaN) : NaN
 				_solarSum += _ratioWithDynMax(solarPower, solarMax, "_solarDynMax")
 				_solarAcc++
@@ -260,16 +249,35 @@ Item {
 					_solarSum = 0; _solarAcc = 0
 				}
 
-			var graphMin = _acInputRange.minimumCurrent || 0
-			var graphMax = _acInputRange.maximumCurrent || 0
-			if (_acPrevGraphMin !== graphMin || _acPrevGraphMax !== graphMax) {
-				if (_acPrevGraphMin !== 0 || _acPrevGraphMax !== 0) {
-					_scaleAcInputHistoricalData(_acPrevGraphMin, _acPrevGraphMax, graphMin, graphMax)
+				var acInputPower = graphHistory._nonGeneratorInput ? graphHistory._nonGeneratorInput.totalPhasePower() : NaN
+				var graphMin = 0
+				var graphMax = 0
+				if (graphHistory.acInputShowsFeedIn) {
+					var acInputAbsPower = Math.abs(acInputPower || 0)
+					var currentAbsGraphLimit = Math.max(Math.abs(_acPrevGraphMin), _acPrevGraphMax)
+					if (acInputAbsPower > currentAbsGraphLimit) {
+						graphMin = -acInputAbsPower
+						graphMax = acInputAbsPower
+					} else {
+						graphMin = _acPrevGraphMin
+						graphMax = _acPrevGraphMax
+					}
+				} else {
+					var positiveAcInputPower = (!isNaN(acInputPower) && acInputPower > 0) ? acInputPower : 0
+					graphMin = 0
+					graphMax = Math.max(_acPrevGraphMax, positiveAcInputPower)
 				}
-				_acPrevGraphMin = graphMin
-				_acPrevGraphMax = graphMax
-			}
-				_acInputSum += _acInputRange.averagePhaseCurrentAsRatio
+				if (_acPrevGraphMin !== graphMin || _acPrevGraphMax !== graphMax) {
+					if (_acPrevGraphMin !== 0 || _acPrevGraphMax !== 0) {
+						_scaleAcInputHistoricalData(_acPrevGraphMin, _acPrevGraphMax, graphMin, graphMax)
+					}
+					_acPrevGraphMin = graphMin
+					_acPrevGraphMax = graphMax
+				}
+				var acInputRatio = (isNaN(acInputPower) || (_acPrevGraphMin === 0 && _acPrevGraphMax === 0))
+					? acInputInitialModelValue
+					: FastUtils.scaleNumber(acInputPower, _acPrevGraphMin, _acPrevGraphMax, 0, 1)
+				_acInputSum += acInputRatio
 				_acInputAcc++
 				if (_acInputAcc >= samplesPerPoint) {
 					_pushValue("acInputModel", _acInputSum / _acInputAcc)
@@ -287,9 +295,13 @@ Item {
 					_dcInputSum = 0; _dcInputAcc = 0
 				}
 
-			var acLoadCurrent = graphHistory._acLoadRange.averagePhaseCurrent || 0
-			var acLoadMax = Global.system ? Global.system.load.maximumAcCurrent : NaN
-				_acLoadsSum += _ratioWithDynMax(acLoadCurrent, acLoadMax, "_acLoadDynMax")
+				var acLoadPower = (Global.system && Global.system.load && Global.system.load.ac)
+					? Global.system.load.ac.totalPhasePower()
+					: NaN
+				if (isNaN(acLoadPower)) {
+					acLoadPower = 0
+				}
+				_acLoadsSum += _ratioWithDynMax(acLoadPower, NaN, "_acLoadDynMax")
 				_acLoadsAcc++
 				if (_acLoadsAcc >= samplesPerPoint) {
 					_pushValue("acLoadsModel", _acLoadsSum / _acLoadsAcc)

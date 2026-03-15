@@ -28,6 +28,10 @@ Device {
 	readonly property real voltage: _phaseMeasurements.voltage
 	readonly property alias phases: _phaseMeasurements.phases
 
+	function totalPhasePower() {
+		return _phaseMeasurements.totalPhasePower()
+	}
+
 	// Phase measurements from the input.
 	readonly property ObjectAcConnection _phaseMeasurements: ObjectAcConnection {
 		id: _phaseMeasurements

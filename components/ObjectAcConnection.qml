@@ -76,15 +76,23 @@ QtObject {
 		phaseCount: _phaseCount.value || 0
 	}
 
+	function totalPhasePower() {
+		if (!hasPower) {
+			return NaN
+		}
+
+		return (powerL1.value || 0) + (powerL2.value || 0) + (powerL3.value || 0)
+	}
+
 	// As systemcalc doesn't provide the totals anymore we calculate it here.
 	// Timer is needed because the values are not received in once and then the total
 	// changes too often on system with more than one phase
 	readonly property Timer _totalPowerTimer: Timer {
 		interval: 1000
-		running: root.hasPower && Global.timersEnabled
+		running: root.hasPower && BackendConnection.applicationVisible
 		repeat: true
 		onTriggered: {
-			_power = (powerL1.value || 0) + (powerL2.value || 0) + (powerL3.value || 0)
+			_power = root.totalPhasePower()
 		}
 	}
 
