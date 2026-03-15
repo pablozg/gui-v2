@@ -36,7 +36,6 @@ ColumnLayout {
 				animationEnabled: root.animationEnabled
 				threshold: 0
 				normalizeToVisibleMaximum: true
-				trimLeadingInitialValues: true
 				aboveThresholdFillColor: "#FFD700"
 			}
 
@@ -257,14 +256,13 @@ ColumnLayout {
 		extraIsAc: false
 			sideComponent: LoadGraph {
 				externalSource: true
-				model: Global.graphHistory ? Global.graphHistory.dcInputModel : []
-					modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
-					animationEnabled: root.animationEnabled
-					threshold: 0    // no threshold needed for inputs
-					normalizeToVisibleMaximum: true
-					trimLeadingInitialValues: true
-					aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
-				}
+					model: Global.graphHistory ? Global.graphHistory.dcInputModel : []
+						modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
+						animationEnabled: root.animationEnabled
+						threshold: 0    // no threshold needed for inputs
+						normalizeToVisibleMaximum: true
+						aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
+					}
 
 		bottomComponent: Global.isGxDevice ? cheapGaugeDcInput : prettyGaugeDcInput
 
@@ -336,14 +334,13 @@ ColumnLayout {
 		extraIsAc: false
 			sideComponent: LoadGraph {
 				externalSource: true
-				model: Global.graphHistory ? Global.graphHistory.dcLoadsModel : []
-					modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
-					animationEnabled: root.animationEnabled
-					threshold: 0
-					normalizeToVisibleMaximum: true
-					trimLeadingInitialValues: true
-					aboveThresholdFillColor: Theme.color_blue
-				}
+					model: Global.graphHistory ? Global.graphHistory.dcLoadsModel : []
+						modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
+						animationEnabled: root.animationEnabled
+						threshold: 0
+						normalizeToVisibleMaximum: true
+						aboveThresholdFillColor: Theme.color_blue
+					}
 
 		bottomComponent: Global.isGxDevice ? cheapGaugeDcLoad : prettyGaugeDcLoad
 
