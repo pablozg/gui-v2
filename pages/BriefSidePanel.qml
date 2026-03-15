@@ -311,7 +311,6 @@ ColumnLayout {
 					threshold: 0
 					zeroCentered: false
 					normalizeToVisibleMaximum: true
-					trimLeadingInitialValues: true
 					aboveThresholdFillColor: Theme.color_blue
 				}
 		bottomComponent: ThreePhaseBarGauge {
