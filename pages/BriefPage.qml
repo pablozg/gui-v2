@@ -258,7 +258,7 @@ SwipeViewPage {
 					quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Any
 					quantityLabel.dataObject: Global.system.solar
 					extraDataObject: Global.system.solar
-					extraIsAc: false
+					extraIsAc: Global.system.solar.voltageIsAc
 				}
 			}
 			onStatusChanged: if (status === Loader.Error) console.warn("Unable to load solar yield gauge")

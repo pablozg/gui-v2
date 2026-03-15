@@ -40,13 +40,21 @@ OverviewWidget {
 
 	readonly property int _normalizedStateOfCharge: Math.round(batteryData.stateOfCharge || 0)
 	readonly property bool _animationReady: animationEnabled && !isNaN(batteryData.stateOfCharge)
+	readonly property bool _showCurrentGauge: root.size >= VenusOS.OverviewWidget_Size_M
+			&& !isNaN(batteryData.current)
+			&& !isNaN(batteryData.maximumCurrent)
+			&& batteryData.maximumCurrent > 0
+	readonly property real _sideGaugeInset: _showCurrentGauge
+			? Theme.geometry_barGauge_vertical_width_large + (2 * Theme.geometry_overviewPage_widget_sideGauge_margins)
+			: 0
+	readonly property int _currentGaugeStatus: Theme.getValueStatus(batteryCurrentRange.valueAsRatio * 100, VenusOS.Gauges_ValueType_RisingPercentage)
 
 	// Calculate whether voltage, current and power quantities fit on the footer together, if not use smaller font.
 	// Discharging battery has negative amperes and its not unusual for the watts to be in the 1k+ range.
 	readonly property bool _useSmallFont: !quantityLabelFits(batteryVoltageDisplay) || !quantityLabelFits(batteryPowerDisplay)
 
 	function quantityLabelFits(label) {
-		return root.width/2 - 2*Theme.geometry_overviewPage_widget_content_horizontalMargin
+		return root.width/2 - 2*Theme.geometry_overviewPage_widget_content_horizontalMargin - root._sideGaugeInset
 			> quantityLabelWidth(batteryCurrentDisplay.valueText, batteryCurrentDisplay.unitText)/2
 			+ quantityLabelWidth(label.valueText, label.unitText)
 	}
@@ -85,6 +93,7 @@ OverviewWidget {
 	icon.source: batteryData.icon
 	type: VenusOS.OverviewWidget_Type_Battery
 	enabled: batteries.valid
+	rightPadding: root._sideGaugeInset
 
 	quantityLabel.value: batteryData.stateOfCharge
 	quantityLabel.unit: VenusOS.Units_Percentage
@@ -164,7 +173,7 @@ OverviewWidget {
 			top: parent.top
 			topMargin: root.verticalMargin
 			right: parent.right
-			rightMargin: Theme.geometry_overviewPage_widget_content_horizontalMargin
+			rightMargin: Theme.geometry_overviewPage_widget_content_horizontalMargin + root._sideGaugeInset
 		}
 
 		value: batteryData.temperature
@@ -182,7 +191,7 @@ OverviewWidget {
 				left: parent.left
 				leftMargin: Theme.geometry_overviewPage_widget_content_horizontalMargin
 				right: parent.right
-				rightMargin: Theme.geometry_overviewPage_widget_content_horizontalMargin
+				rightMargin: Theme.geometry_overviewPage_widget_content_horizontalMargin + root._sideGaugeInset
 			}
 			Label {
 				text: VenusOS.battery_modeToText(batteryData.mode)
@@ -254,7 +263,7 @@ OverviewWidget {
 				bottom: batteryPowerDisplay.top
 				bottomMargin: Theme.geometry_overviewPage_batterywidget_renewable_icon_bottom_margin
 				right: parent.right
-				rightMargin: Theme.geometry_overviewPage_batterywidget_renewable_icon_right_margin
+				rightMargin: Theme.geometry_overviewPage_batterywidget_renewable_icon_right_margin + root._sideGaugeInset
 			}
 
 			fillMode: Image.PreserveAspectFit
@@ -268,7 +277,7 @@ OverviewWidget {
 
 			anchors {
 				right: parent.right
-				rightMargin: Theme.geometry_overviewPage_widget_content_horizontalMargin
+				rightMargin: Theme.geometry_overviewPage_widget_content_horizontalMargin + root._sideGaugeInset
 				bottom: parent.bottom
 				bottomMargin: Theme.geometry_overviewPage_widget_battery_bottomRow_bottomMargin
 			}
@@ -279,4 +288,54 @@ OverviewWidget {
 			alignment: Qt.AlignRight
 		}
 	]
+
+	ValueRange {
+		id: batteryCurrentRange
+		value: root._showCurrentGauge ? Math.abs(batteryData.current) : NaN
+		minimumValue: 0
+		maximumValue: batteryData.maximumCurrent
+	}
+
+	Loader {
+		id: sideGaugeLoader
+
+		anchors {
+			top: parent.top
+			bottom: parent.bottom
+			right: parent.right
+			margins: Theme.geometry_overviewPage_widget_sideGauge_margins
+		}
+		active: root._showCurrentGauge
+		sourceComponent: Global.isGxDevice ? cheapGauge : prettyGauge
+	}
+
+	Component {
+		id: cheapGauge
+
+		CheapBarGauge {
+			foregroundColor: Theme.statusColorValue(root._currentGaugeStatus)
+			backgroundColor: root._currentGaugeStatus === Theme.Ok
+					? Theme.color_darkishBlue
+					: Theme.statusColorValue(root._currentGaugeStatus, true)
+			valueType: VenusOS.Gauges_ValueType_RisingPercentage
+			value: batteryCurrentRange.valueAsRatio
+			orientation: Qt.Vertical
+			animationEnabled: root.animationEnabled
+		}
+	}
+
+	Component {
+		id: prettyGauge
+
+		BarGauge {
+			foregroundColor: Theme.statusColorValue(root._currentGaugeStatus)
+			backgroundColor: root._currentGaugeStatus === Theme.Ok
+					? Theme.color_darkishBlue
+					: Theme.statusColorValue(root._currentGaugeStatus, true)
+			valueType: VenusOS.Gauges_ValueType_RisingPercentage
+			value: batteryCurrentRange.valueAsRatio
+			orientation: Qt.Vertical
+			animationEnabled: root.animationEnabled
+		}
+	}
 }

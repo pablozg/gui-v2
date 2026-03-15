@@ -5,6 +5,7 @@
 
 import QtQuick
 import QtQuick.Window
+import QtQuick.Shapes
 import QtQuick.Controls.impl as CP
 import Victron.VenusOS
 
@@ -17,6 +18,30 @@ Item {
 	property real labelMargin
 	property alias labelOpacity: textCol.opacity
 	property int leftGaugeCount
+	readonly property color _socStartColor: Theme.color_red
+	readonly property color _socWarmColor: Theme.color_orange
+	readonly property color _socMidColor: Qt.rgba(0.96, 0.84, 0.25, 1.0)
+	readonly property color _socEndColor: Theme.color_green
+
+	function _mixColors(colorA, colorB, amount) {
+		const t = Math.max(0, Math.min(amount, 1))
+		return Qt.rgba(
+			colorA.r + ((colorB.r - colorA.r) * t),
+			colorA.g + ((colorB.g - colorA.g) * t),
+			colorA.b + ((colorB.b - colorA.b) * t),
+			colorA.a + ((colorB.a - colorA.a) * t)
+		)
+	}
+
+	function _gradientColorAt(position) {
+		const t = Math.max(0, Math.min(position, 1))
+		if (t <= 0.2) {
+			return _mixColors(_socStartColor, _socWarmColor, t / 0.2)
+		} else if (t <= 0.55) {
+			return _mixColors(_socWarmColor, _socMidColor, (t - 0.2) / 0.35)
+		}
+		return _mixColors(_socMidColor, _socEndColor, (t - 0.55) / 0.45)
+	}
 
 	// Step change in the size of the bounding boxes of successive gauges
 	readonly property real _stepSize: 2 * (strokeWidth + Theme.geometry_circularMultiGauge_spacing)
@@ -45,16 +70,73 @@ Item {
 
 				Component {
 					id: shinyProgressArc
-					ShinyProgressArc {
-						radius: width/2
-						startAngle: 0
-						endAngle: 270
-						value: loader.level
-						progressColor: Theme.color_darkOk,Theme.statusColorValue(loader.gaugeStatus)
-						remainderColor: Theme.color_darkOk,Theme.statusColorValue(loader.gaugeStatus, true)
-						strokeWidth: gauges.strokeWidth
-						animationEnabled: gauges.animationEnabled
-						shineAnimationEnabled: Global.system.battery.mode === VenusOS.Battery_Mode_Charging
+					Item {
+						id: batteryArc
+						width: loader.width
+						height: loader.height
+						property real radius: width / 2
+						property real startAngle: 0
+						property real endAngle: 270
+						property real value: loader.level
+						property real strokeWidth: gauges.strokeWidth
+						property bool animationEnabled: gauges.animationEnabled
+						property bool shineAnimationEnabled: Global.system.battery.mode === VenusOS.Battery_Mode_Charging
+						readonly property real _sweepAngle: Math.max(Math.abs(endAngle - startAngle), 0.01)
+						readonly property real _angleDirection: endAngle >= startAngle ? 1 : -1
+						readonly property real _progressFraction: Math.min(Math.max(value, 0.0), 100.0) / 100.0
+						readonly property int _segmentCount: Math.max(18, Math.ceil(_sweepAngle / 10))
+
+						function _angleForFraction(fraction) {
+							const t = Math.max(0, Math.min(fraction, 1))
+							return startAngle + (_angleDirection * _sweepAngle * t)
+						}
+
+						Repeater {
+							model: batteryArc._segmentCount
+							delegate: Shape {
+								required property int index
+								readonly property real startFraction: index / batteryArc._segmentCount
+								readonly property real endFraction: (index + 1) / batteryArc._segmentCount
+								x: 0
+								y: 0
+								width: loader.width
+								height: loader.height
+								opacity: 0.28
+
+								Arc {
+									radius: batteryArc.radius
+									startAngle: batteryArc._angleForFraction(startFraction)
+									endAngle: batteryArc._angleForFraction(endFraction)
+									strokeWidth: batteryArc.strokeWidth
+									strokeColor: gauges._gradientColorAt((startFraction + endFraction) / 2)
+									fillColor: "transparent"
+								}
+							}
+						}
+
+						Repeater {
+							model: batteryArc._segmentCount
+							delegate: Shape {
+								required property int index
+								readonly property real startFraction: index / batteryArc._segmentCount
+								readonly property real endFraction: (index + 1) / batteryArc._segmentCount
+								readonly property real clampedEndFraction: Math.min(endFraction, batteryArc._progressFraction)
+								x: 0
+								y: 0
+								width: loader.width
+								height: loader.height
+								visible: batteryArc._progressFraction > startFraction
+
+								Arc {
+									radius: batteryArc.radius
+									startAngle: batteryArc._angleForFraction(startFraction)
+									endAngle: batteryArc._angleForFraction(clampedEndFraction)
+									strokeWidth: batteryArc.strokeWidth
+									strokeColor: gauges._gradientColorAt((startFraction + endFraction) / 2)
+									fillColor: "transparent"
+								}
+							}
+						}
 					}
 				}
 

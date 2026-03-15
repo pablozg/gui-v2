@@ -27,11 +27,11 @@ ColumnLayout {
 			visible: Global.solarInputs.inputCount > 0 // show if there are any solar inputs (PV chargers, PV inverters, etc.)
 			quantityLabel.dataObject: Global.system.solar
 			extraDataObject: Global.system.solar
-			extraIsAc: false
+			extraIsAc: Global.system.solar.voltageIsAc
 			sideComponent: LoadGraph {
 				externalSource: true
 				model: Global.graphHistory ? Global.graphHistory.solarModel : []
-				modelLength: 120
+				modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 				animationEnabled: root.animationEnabled
 				threshold: 0
 				normalizeToVisibleMaximum: true
@@ -39,9 +39,37 @@ ColumnLayout {
 				aboveThresholdFillColor: "#FFD700"
 			}
 
-			bottomComponent: SolarYieldGraph {
-				spacing: Theme.geometry_sidePanel_solar_graph_bar_spacing
-				maximumBarCount: Theme.geometry_sidePanel_solar_graph_bar_count
+			bottomComponent: _currentGaugeVisible ? (Global.isGxDevice ? cheapSolarGauge : prettySolarGauge) : null
+
+			readonly property bool _currentGaugeVisible: !isNaN(Global.system.solar.current)
+					&& !isNaN(Global.system.solar.maximumCurrent)
+					&& Global.system.solar.maximumCurrent > 0
+
+			ValueRange {
+				id: solarCurrentRange
+				value: parent.visible ? Math.abs(Global.system.solar.current) : NaN
+				minimumValue: 0
+				maximumValue: Global.system.solar.maximumCurrent
+			}
+
+			Component {
+				id: cheapSolarGauge
+				CheapBarGauge {
+					orientation: Qt.Horizontal
+					valueType: VenusOS.Gauges_ValueType_RisingPercentage
+					value: solarCurrentRange.valueAsRatio
+					animationEnabled: root.animationEnabled
+				}
+			}
+
+			Component {
+				id: prettySolarGauge
+				BarGauge {
+					orientation: Qt.Horizontal
+					valueType: VenusOS.Gauges_ValueType_RisingPercentage
+					value: solarCurrentRange.valueAsRatio
+					animationEnabled: root.animationEnabled
+				}
 			}
 		}
 
@@ -69,13 +97,46 @@ ColumnLayout {
 		sideComponent: LoadGraph {
 			externalSource: true
 			model: Global.graphHistory ? Global.graphHistory.batteryModel : []
-			modelLength: 120
+			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 			animationEnabled: root.animationEnabled
 			aboveThresholdFillColor: Theme.color_blue
 			belowThresholdFillColor: Theme.color_green
 			initialModelValue: Global.graphHistory ? Global.graphHistory.batteryInitialModelValue : 0.5
 			zeroCentered: true
 			threshold: Global.graphHistory ? Global.graphHistory.batteryThreshold : 0.5
+		}
+
+		bottomComponent: _currentGaugeVisible ? (Global.isGxDevice ? cheapBatteryGauge : prettyBatteryGauge) : null
+
+		readonly property bool _currentGaugeVisible: !isNaN(Global.system.battery.current)
+				&& !isNaN(Global.system.battery.maximumCurrent)
+				&& Global.system.battery.maximumCurrent > 0
+
+		ValueRange {
+			id: batteryCurrentRange
+			value: parent.visible ? Math.abs(Global.system.battery.current) : NaN
+			minimumValue: 0
+			maximumValue: Global.system.battery.maximumCurrent
+		}
+
+		Component {
+			id: cheapBatteryGauge
+			CheapBarGauge {
+				orientation: Qt.Horizontal
+				valueType: VenusOS.Gauges_ValueType_RisingPercentage
+				value: batteryCurrentRange.valueAsRatio
+				animationEnabled: root.animationEnabled
+			}
+		}
+
+		Component {
+			id: prettyBatteryGauge
+			BarGauge {
+				orientation: Qt.Horizontal
+				valueType: VenusOS.Gauges_ValueType_RisingPercentage
+				value: batteryCurrentRange.valueAsRatio
+				animationEnabled: root.animationEnabled
+			}
 		}
 	}
 
@@ -150,7 +211,7 @@ ColumnLayout {
 		sideComponent: LoadGraph {
 			externalSource: true
 			model: Global.graphHistory ? Global.graphHistory.acInputModel : []
-			modelLength: 120
+			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 			animationEnabled: root.animationEnabled
 			aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
 			belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_blue
@@ -188,7 +249,7 @@ ColumnLayout {
 			sideComponent: LoadGraph {
 				externalSource: true
 				model: Global.graphHistory ? Global.graphHistory.dcInputModel : []
-					modelLength: 120
+					modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 					animationEnabled: root.animationEnabled
 					threshold: 0    // no threshold needed for inputs
 					normalizeToVisibleMaximum: true
@@ -236,7 +297,7 @@ ColumnLayout {
 			sideComponent: LoadGraph {
 				externalSource: true
 				model: Global.graphHistory ? Global.graphHistory.acLoadsModel : []
-				modelLength: 120
+				modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 					animationEnabled: root.animationEnabled
 					threshold: 0
 					zeroCentered: false
@@ -268,7 +329,7 @@ ColumnLayout {
 			sideComponent: LoadGraph {
 				externalSource: true
 				model: Global.graphHistory ? Global.graphHistory.dcLoadsModel : []
-					modelLength: 120
+					modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 					animationEnabled: root.animationEnabled
 					threshold: 0
 					normalizeToVisibleMaximum: true

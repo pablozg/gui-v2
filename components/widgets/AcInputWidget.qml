@@ -12,6 +12,9 @@ AcWidget {
 	readonly property AcInputSystemInfo inputInfo: input?.inputInfo ?? null
 	property AcInput input
 	readonly property bool inputOperational: input && input.operational
+	readonly property bool _showHistoryGraph: inputOperational
+			&& root.size >= VenusOS.OverviewWidget_Size_M
+			&& root.phaseCount <= 1
 
 	title: !!inputInfo ? Global.acInputs.sourceToText(inputInfo.source) : ""
 	icon.source: !!inputInfo ? Global.acInputs.sourceIcon(inputInfo.source) : ""
@@ -23,12 +26,8 @@ AcWidget {
 	overviewExtraIsAc: true
 	phaseCount: inputOperational ? input.phases.count : 0
 	enabled: !!inputInfo
-	extraContentLoader.sourceComponent: ThreePhaseDisplay {
-		width: parent.width
-		model: root.input.phases
-		widgetSize: root.size
-		inputMode: true
-	}
+	extraContentLoader.active: root.phaseCount > 1 || root._showHistoryGraph
+	extraContentLoader.sourceComponent: root.phaseCount > 1 ? phaseComponent : historyGraphComponent
 
 	onClicked: {
 		const inputServiceUid = BackendConnection.serviceUidFromName(root.inputInfo.serviceName, root.inputInfo.deviceInstance)
@@ -69,6 +68,40 @@ AcWidget {
 			inputMode: true
 			animationEnabled: root.animationEnabled
 			inOverviewWidget: true
+		}
+	}
+
+	Component {
+		id: phaseComponent
+
+		ThreePhaseDisplay {
+			width: parent.width
+			model: root.input.phases
+			widgetSize: root.size
+			inputMode: true
+		}
+	}
+
+	Component {
+		id: historyGraphComponent
+
+		LoadGraph {
+			anchors {
+				left: parent.left
+				right: parent.right
+				bottom: parent.bottom
+			}
+			height: Theme.geometry_briefPage_sidePanel_loadGraph_height
+			externalSource: true
+			backgroundColor: Theme.color_overviewPage_widget_background
+			model: Global.graphHistory ? Global.graphHistory.acInputModel : []
+			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
+			animationEnabled: root.animationEnabled
+			aboveThresholdFillColor: Theme.color_blue
+			belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_blue
+			initialModelValue: Global.graphHistory ? Global.graphHistory.acInputInitialModelValue : 0
+			zeroCentered: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
+			threshold: Global.graphHistory ? Global.graphHistory.acInputThreshold : 0
 		}
 	}
 

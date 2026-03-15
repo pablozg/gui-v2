@@ -67,16 +67,51 @@ QtObject {
 		property real power: NaN
 		property real acPower: NaN
 		property real dcPower: NaN
+		property real acCurrent: NaN
+		property real dcCurrent: NaN
 		property real current: NaN
-		readonly property real voltage: NaN // Solar DC voltage is not aggregated by systemcalc
+		property real voltage: NaN
+		property bool voltageIsAc: false
 		property real maximumPower: NaN
+		property real maximumCurrent: NaN
 
 		function _refresh() {
 			acPower = _pvMonitor.totalPower
+			acCurrent = _pvMonitor.totalCurrent
 			dcPower = _dcPvPower.valid ? _dcPvPower.value : NaN
-			current = _dcPvCurrent.valid ? _dcPvCurrent.value : NaN
+			dcCurrent = _dcPvCurrent.valid ? _dcPvCurrent.value : NaN
 			maximumPower = _maximumPower.valid ? _maximumPower.value : NaN
 			power = Units.sumRealNumbers(acPower, dcPower)
+
+			const acMeasurementsAvailable = !isNaN(acCurrent) || !isNaN(_pvMonitor.voltage)
+			const dcMeasurementsAvailable = !isNaN(dcCurrent)
+			if (acMeasurementsAvailable && !dcMeasurementsAvailable) {
+				current = acCurrent
+				voltage = _pvMonitor.voltage
+				voltageIsAc = !isNaN(voltage)
+			} else if (dcMeasurementsAvailable && !acMeasurementsAvailable) {
+				current = dcCurrent
+				voltage = NaN // Solar DC voltage is not aggregated by systemcalc.
+				voltageIsAc = false
+			} else {
+				// Mixed AC+DC solar has no single meaningful V/A pair to display.
+				current = NaN
+				voltage = NaN
+				voltageIsAc = false
+			}
+
+			const configuredMaximumCurrent = (!isNaN(maximumPower) && !isNaN(voltage) && voltage !== 0)
+					? Math.abs(maximumPower / voltage)
+					: NaN
+			const absoluteCurrent = Math.abs(current)
+			let nextMaximumCurrent = maximumCurrent
+			if (!isNaN(configuredMaximumCurrent) && (isNaN(nextMaximumCurrent) || configuredMaximumCurrent > nextMaximumCurrent)) {
+				nextMaximumCurrent = configuredMaximumCurrent
+			}
+			if (!isNaN(absoluteCurrent) && (isNaN(nextMaximumCurrent) || absoluteCurrent > nextMaximumCurrent)) {
+				nextMaximumCurrent = absoluteCurrent
+			}
+			maximumCurrent = nextMaximumCurrent
 		}
 
 		readonly property VeQuickItem _maximumPower: VeQuickItem {
@@ -98,6 +133,12 @@ QtObject {
 		readonly property Connections _pvMonitorConnection: Connections {
 			target: solarData._pvMonitor
 			function onTotalPowerChanged() {
+				solarData._refresh()
+			}
+			function onTotalCurrentChanged() {
+				solarData._refresh()
+			}
+			function onVoltageChanged() {
 				solarData._refresh()
 			}
 		}

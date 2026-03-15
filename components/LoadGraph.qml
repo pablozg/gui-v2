@@ -17,7 +17,8 @@ Item {
 	property int dotSize: Theme.geometry_briefPage_sidePanel_loadGraph_dotSize
 	property color aboveThresholdFillColor: Theme.color_orange
 	property color belowThresholdFillColor: Theme.color_blue
-	property color horizontalGradientColor1: Theme.color_briefPage_background
+	property color backgroundColor: Theme.color_briefPage_background
+	property color horizontalGradientColor1: backgroundColor
 	property color horizontalGradientColor2: "transparent"
 	property bool zeroCentered
 	property bool normalizeToVisibleMaximum: false
@@ -43,6 +44,17 @@ Item {
 	property bool externalSource: false
 	readonly property bool _animateBetweenPoints: !externalSource && samplesPerPoint <= 1 && animationEnabled
 	readonly property bool _stepWithoutAnimation: !externalSource && samplesPerPoint <= 1 && !animationEnabled
+	readonly property var _displayedModel: _displayModel(model)
+	readonly property real _maxDisplayedValue: {
+		let maxValue = 0
+		for (let i = 0; i < _displayedModel.length; ++i) {
+			const value = _displayedModel[i]
+			if (!isNaN(value) && value > maxValue) {
+				maxValue = value
+			}
+		}
+		return maxValue
+	}
 
 	signal nextValueRequested()
 
@@ -209,16 +221,15 @@ Item {
 
 	Rectangle {
 		anchors.fill: parent
-		color: Theme.color_briefPage_background
+		color: root.backgroundColor
 
 		LoadGraphShapePath {
 			id: orangePath // .. or entire graph if no threshold is set.
 
 			anchors.fill: parent
 
-				visible: threshold === 0.0 || minYValue < (root.height - (root.height * threshold))
-				calculateMinYValue: true
-				model: root._displayModel(root.model)
+				visible: threshold === 0.0 || root._maxDisplayedValue > threshold
+				model: root._displayedModel
 				strokeColor: aboveThresholdFillColor
 				offsetFraction: root.offsetFraction
 				fillGradient: LinearGradient {
@@ -236,7 +247,7 @@ Item {
 		width: parent.width
 		height: root.height * threshold
 		clip: true // we have to clip this, because we can't rely on setting minYValue of bluePath.
-		color: Theme.color_briefPage_background
+		color: root.backgroundColor
 
 		LoadGraphShapePath {
 			id: bluePath
@@ -249,7 +260,7 @@ Item {
 			height: root.height // larger than parent.
 
 				//minYValue: (root.height - (root.height * threshold)) // we would like to do this, but the cubic pathing causes orange edge mismatch.
-				model: root._displayModel(root.model)
+				model: root._displayedModel
 				strokeColor: belowThresholdFillColor
 				zeroCentered: root.zeroCentered
 				offsetFraction: root.offsetFraction

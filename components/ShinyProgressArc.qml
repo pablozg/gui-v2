@@ -40,10 +40,6 @@ Item {
 		}
 	}
 
-	// Unfortunately, we need two separate Shape items in the shine animation case,
-	// as we need to use a layer-enabled Item-derived type as the maskSource of the MultiEffect,
-	// and thus a ShapePath cannot be used as the maskSource
-	// (and we only want the shine over the "progress" area, not "remainder").
 	Shape {
 		id: progressShape
 		anchors.fill: parent

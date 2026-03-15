@@ -18,6 +18,7 @@ QtObject {
 	readonly property real timeToGo: _timeToGo.valid ? _timeToGo.value : NaN
 	readonly property string icon: VenusOS.battery_iconFromMode(mode)
 	readonly property int mode: VenusOS.battery_modeFromPower(power)
+	property real maximumCurrent: NaN
 
 	readonly property VeQuickItem _stateOfCharge: VeQuickItem {
 		uid: root.systemServiceUid + "/Dc/Battery/Soc"
@@ -44,4 +45,14 @@ QtObject {
 	readonly property VeQuickItem _timeToGo: VeQuickItem {
 		uid: root.systemServiceUid + "/Dc/Battery/TimeToGo"
 	}
+
+	function _updateMaximumCurrent() {
+		const absoluteCurrent = Math.abs(current)
+		if (!isNaN(absoluteCurrent) && (isNaN(maximumCurrent) || absoluteCurrent > maximumCurrent)) {
+			maximumCurrent = absoluteCurrent
+		}
+	}
+
+	onCurrentChanged: _updateMaximumCurrent()
+	Component.onCompleted: _updateMaximumCurrent()
 }

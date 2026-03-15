@@ -59,9 +59,9 @@ Item {
 			QtObject {
 				id: graphHistory
 
-				readonly property int modelLength: 120
-				readonly property int samplesPerPoint: 60
-				readonly property int checkpointEveryPoints: 720
+				readonly property int modelLength: 480
+				readonly property int samplesPerPoint: 15
+				readonly property int checkpointEveryPoints: 2880
 
 				readonly property bool acInputShowsFeedIn: _nonGeneratorInput
 						&& _nonGeneratorInput.inputInfo.minimumCurrent < 0
@@ -412,12 +412,12 @@ Item {
 					let restoredFromCheckpoint = false
 
 					function _restoreChannel(runtimeItem, checkpointItem, channelName) {
-						let result = graphHistory._restoreFromItem(runtimeItem, channelName)
-						if (result.restored) {
+						const runtimeResult = graphHistory._restoreFromItem(runtimeItem, channelName)
+						if (runtimeResult.restored && runtimeResult.meaningful) {
 							return
 						}
-						result = graphHistory._restoreFromItem(checkpointItem, channelName)
-						if (result.restored) {
+						const checkpointResult = graphHistory._restoreFromItem(checkpointItem, channelName)
+						if (checkpointResult.restored) {
 							restoredFromCheckpoint = true
 						}
 					}
@@ -542,59 +542,77 @@ Item {
 				}
 			}
 
-			readonly property Connections _solarCheckpointHistoryConnection: Connections {
-				target: graphHistory._solarCheckpointHistory
-				function onValidChanged() {
-					if (graphHistory._solarCheckpointHistory.valid) {
+				readonly property Connections _solarCheckpointHistoryConnection: Connections {
+					target: graphHistory._solarCheckpointHistory
+					function onValidChanged() {
+						if (graphHistory._solarCheckpointHistory.valid) {
+							graphHistory._restoreAll()
+						}
+					}
+					function onValueChanged() {
 						graphHistory._restoreAll()
 					}
 				}
-			}
 
-			readonly property Connections _batteryCheckpointHistoryConnection: Connections {
-				target: graphHistory._batteryCheckpointHistory
-				function onValidChanged() {
-					if (graphHistory._batteryCheckpointHistory.valid) {
+				readonly property Connections _batteryCheckpointHistoryConnection: Connections {
+					target: graphHistory._batteryCheckpointHistory
+					function onValidChanged() {
+						if (graphHistory._batteryCheckpointHistory.valid) {
+							graphHistory._restoreAll()
+						}
+					}
+					function onValueChanged() {
 						graphHistory._restoreAll()
 					}
 				}
-			}
 
-			readonly property Connections _acInputCheckpointHistoryConnection: Connections {
-				target: graphHistory._acInputCheckpointHistory
-				function onValidChanged() {
-					if (graphHistory._acInputCheckpointHistory.valid) {
+				readonly property Connections _acInputCheckpointHistoryConnection: Connections {
+					target: graphHistory._acInputCheckpointHistory
+					function onValidChanged() {
+						if (graphHistory._acInputCheckpointHistory.valid) {
+							graphHistory._restoreAll()
+						}
+					}
+					function onValueChanged() {
 						graphHistory._restoreAll()
 					}
 				}
-			}
 
-			readonly property Connections _dcInputCheckpointHistoryConnection: Connections {
-				target: graphHistory._dcInputCheckpointHistory
-				function onValidChanged() {
-					if (graphHistory._dcInputCheckpointHistory.valid) {
+				readonly property Connections _dcInputCheckpointHistoryConnection: Connections {
+					target: graphHistory._dcInputCheckpointHistory
+					function onValidChanged() {
+						if (graphHistory._dcInputCheckpointHistory.valid) {
+							graphHistory._restoreAll()
+						}
+					}
+					function onValueChanged() {
 						graphHistory._restoreAll()
 					}
 				}
-			}
 
-			readonly property Connections _acLoadsCheckpointHistoryConnection: Connections {
-				target: graphHistory._acLoadsCheckpointHistory
-				function onValidChanged() {
-					if (graphHistory._acLoadsCheckpointHistory.valid) {
+				readonly property Connections _acLoadsCheckpointHistoryConnection: Connections {
+					target: graphHistory._acLoadsCheckpointHistory
+					function onValidChanged() {
+						if (graphHistory._acLoadsCheckpointHistory.valid) {
+							graphHistory._restoreAll()
+						}
+					}
+					function onValueChanged() {
 						graphHistory._restoreAll()
 					}
 				}
-			}
 
-			readonly property Connections _dcLoadsCheckpointHistoryConnection: Connections {
-				target: graphHistory._dcLoadsCheckpointHistory
-				function onValidChanged() {
-					if (graphHistory._dcLoadsCheckpointHistory.valid) {
+				readonly property Connections _dcLoadsCheckpointHistoryConnection: Connections {
+					target: graphHistory._dcLoadsCheckpointHistory
+					function onValidChanged() {
+						if (graphHistory._dcLoadsCheckpointHistory.valid) {
+							graphHistory._restoreAll()
+						}
+					}
+					function onValueChanged() {
 						graphHistory._restoreAll()
 					}
 				}
-			}
 
 				readonly property Connections _appVisibilityConnection: Connections {
 					target: BackendConnection

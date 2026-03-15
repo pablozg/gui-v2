@@ -15,5 +15,5 @@ CP.ColorImage {
 
 	visible: !isNaN(_power) && _power !== 0
 	source: _power < 0 ? "qrc:/images/icon_to_grid.svg" : "qrc:/images/icon_from_grid.svg"
-	color: _power < 0 ? Theme.color_green : Theme.color_blue
+	color: _power < 0 ? Theme.color_red : Theme.color_green
 }
