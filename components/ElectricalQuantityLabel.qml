@@ -22,6 +22,7 @@ QuantityLabel {
 	id: root
 
 	property int sourceType: VenusOS.ElectricalQuantity_Source_Any
+	property bool showAbsoluteValue: sourceType === VenusOS.ElectricalQuantity_Source_AcInputOnly
 
 	// An object with 'power' and 'current' values. When showing in Amps, the current is displayed,
 	// otherwise the power is displayed.
@@ -36,9 +37,8 @@ QuantityLabel {
 		: _unitAmps ? (dataObject.current ?? NaN)
 		: (dataObject.power ?? NaN)
 
-	// For AC inputs, the AcInputDirectionIcon should be present to indicate when power is negative,
-	// so just show the absolute value without a minus sign.
-	value: sourceType === VenusOS.ElectricalQuantity_Source_AcInputOnly
+	// When a direction icon is present, show the absolute value without a minus sign.
+	value: showAbsoluteValue
 		? Math.abs(_value) // will return NaN if _value is NaN.
 		: _value
 

@@ -97,12 +97,30 @@ Column {
 				value: Global.system.battery.current
 			}
 
-			QuantityLabel {
-				valueColor: Theme.color_briefPage_battery_value_text_color
-				unitColor: Theme.color_briefPage_battery_unit_text_color
-				font.pixelSize: Theme.font_briefPage_battery_timeToGo_pixelSize
-				unit: VenusOS.Units_Watt
-				value: Global.system.battery.power
+			Row {
+				spacing: Theme.geometry_acInputDirectionIcon_rightMargin
+
+				Item {
+					width: batteryPowerDirectionIcon.visible ? batteryPowerDirectionIcon.implicitWidth : 0
+					height: batteryPowerDisplay.height
+
+					BatteryDirectionIcon {
+						id: batteryPowerDirectionIcon
+
+						anchors.centerIn: parent
+						battery: Global.system.battery
+					}
+				}
+
+				QuantityLabel {
+					id: batteryPowerDisplay
+
+					valueColor: Theme.color_briefPage_battery_value_text_color
+					unitColor: Theme.color_briefPage_battery_unit_text_color
+					font.pixelSize: Theme.font_briefPage_battery_timeToGo_pixelSize
+					unit: VenusOS.Units_Watt
+					value: batteryPowerDirectionIcon.visible ? Math.abs(Global.system.battery.power) : Global.system.battery.power
+				}
 			}
 		}
 

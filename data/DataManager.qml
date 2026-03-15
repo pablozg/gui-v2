@@ -67,6 +67,8 @@ Item {
 						&& _nonGeneratorInput.inputInfo.minimumCurrent < 0
 				readonly property real acInputInitialModelValue: acInputShowsFeedIn ? 0.5 : 0
 				readonly property real acInputThreshold: isNaN(_acInputMaxAboveZeroMidPoint) ? 0 : 0.5
+				readonly property real batteryInitialModelValue: 0.5
+				readonly property real batteryThreshold: 0.5
 				readonly property bool _publishesRuntimeHistory: BackendConnection.type === BackendConnection.DBusSource
 				readonly property bool _readsRuntimeHistory: BackendConnection.type === BackendConnection.MqttSource
 				readonly property string _runtimeHistoryServiceUid: _readsRuntimeHistory
@@ -74,6 +76,7 @@ Item {
 						: ""
 
 			property var solarModel: _normalizedModel([], "solarModel")
+			property var batteryModel: _normalizedModel([], "batteryModel")
 			property var acInputModel: _normalizedModel([], "acInputModel")
 			property var dcInputModel: _normalizedModel([], "dcInputModel")
 			property var acLoadsModel: _normalizedModel([], "acLoadsModel")
@@ -98,7 +101,12 @@ Item {
 			property real _acLoadDynMax: NaN
 
 			function _initialValueForChannel(channelName) {
-				return channelName === "acInputModel" ? acInputInitialModelValue : 0
+				if (channelName === "acInputModel") {
+					return acInputInitialModelValue
+				} else if (channelName === "batteryModel") {
+					return batteryInitialModelValue
+				}
+				return 0
 			}
 
 			function _normalizedModel(data, channelName) {
@@ -129,18 +137,21 @@ Item {
 
 				property real _acPrevGraphMin: 0
 				property real _acPrevGraphMax: 0
+				property real _batteryPrevGraphMin: 0
+				property real _batteryPrevGraphMax: 0
 
-			function _scaleAcInputHistoricalData(prevMin, prevMax, newMin, newMax) {
-				let temp = _normalizedModel(acInputModel, "acInputModel")
+			function _rescaleHistoricalData(channelName, prevMin, prevMax, newMin, newMax) {
+				let temp = _normalizedModel(graphHistory[channelName], channelName)
 				for (let i = 0; i < temp.length; ++i) {
 					const ratio = temp[i]
-					const currentInAmps = FastUtils.scaleNumber(ratio, 0, 1, prevMin, prevMax)
-					temp[i] = FastUtils.scaleNumber(currentInAmps, prevMin, prevMax, newMin, newMax)
+					const valueInUnits = FastUtils.scaleNumber(ratio, 0, 1, prevMin, prevMax)
+					temp[i] = FastUtils.scaleNumber(valueInUnits, newMin, newMax, 0, 1)
 				}
-				acInputModel = temp
+				graphHistory[channelName] = temp
 			}
 
 				property int _solarAcc: 0; property real _solarSum: 0
+				property int _batteryAcc: 0; property real _batterySum: 0
 				property int _acInputAcc: 0; property real _acInputSum: 0
 				property int _dcInputAcc: 0; property real _dcInputSum: 0
 				property int _acLoadsAcc: 0; property real _acLoadsSum: 0
@@ -220,6 +231,7 @@ Item {
 					}
 
 					_publish("solar", solarModel, "solarModel")
+					_publish("battery", batteryModel, "batteryModel")
 					_publish("acInput", acInputModel, "acInputModel")
 					_publish("dcInput", dcInputModel, "dcInputModel")
 					_publish("acLoads", acLoadsModel, "acLoadsModel")
@@ -249,6 +261,38 @@ Item {
 					_solarSum = 0; _solarAcc = 0
 				}
 
+				var batteryPower = Global.system ? (Global.system.battery.power ?? NaN) : NaN
+				var batteryGraphMin = _batteryPrevGraphMin
+				var batteryGraphMax = _batteryPrevGraphMax
+				if (!isNaN(batteryPower)) {
+					var batteryAbsPower = Math.abs(batteryPower)
+					var batteryAbsGraphLimit = Math.max(Math.abs(_batteryPrevGraphMin), _batteryPrevGraphMax)
+					if (batteryAbsPower > batteryAbsGraphLimit) {
+						batteryGraphMin = -batteryAbsPower
+						batteryGraphMax = batteryAbsPower
+					} else {
+						batteryGraphMin = _batteryPrevGraphMin
+						batteryGraphMax = _batteryPrevGraphMax
+					}
+				}
+				if (_batteryPrevGraphMin !== batteryGraphMin || _batteryPrevGraphMax !== batteryGraphMax) {
+					if (_batteryPrevGraphMin !== 0 || _batteryPrevGraphMax !== 0) {
+						_rescaleHistoricalData("batteryModel", _batteryPrevGraphMin, _batteryPrevGraphMax, batteryGraphMin, batteryGraphMax)
+					}
+					_batteryPrevGraphMin = batteryGraphMin
+					_batteryPrevGraphMax = batteryGraphMax
+				}
+				var batteryRatio = (isNaN(batteryPower) || (_batteryPrevGraphMin === 0 && _batteryPrevGraphMax === 0))
+					? batteryInitialModelValue
+					: FastUtils.scaleNumber(batteryPower, _batteryPrevGraphMin, _batteryPrevGraphMax, 0, 1)
+				_batterySum += batteryRatio
+				_batteryAcc++
+				if (_batteryAcc >= samplesPerPoint) {
+					_pushValue("batteryModel", _batterySum / _batteryAcc)
+					pushedPoint = true
+					_batterySum = 0; _batteryAcc = 0
+				}
+
 				var acInputPower = graphHistory._nonGeneratorInput ? graphHistory._nonGeneratorInput.totalPhasePower() : NaN
 				var graphMin = 0
 				var graphMax = 0
@@ -269,7 +313,7 @@ Item {
 				}
 				if (_acPrevGraphMin !== graphMin || _acPrevGraphMax !== graphMax) {
 					if (_acPrevGraphMin !== 0 || _acPrevGraphMax !== 0) {
-						_scaleAcInputHistoricalData(_acPrevGraphMin, _acPrevGraphMax, graphMin, graphMax)
+						_rescaleHistoricalData("acInputModel", _acPrevGraphMin, _acPrevGraphMax, graphMin, graphMax)
 					}
 					_acPrevGraphMin = graphMin
 					_acPrevGraphMax = graphMax
@@ -328,12 +372,14 @@ Item {
 			}
 
 			readonly property VeQuickItem _solarRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/solar" : "" }
+			readonly property VeQuickItem _batteryRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/battery" : "" }
 			readonly property VeQuickItem _acInputRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/acInput" : "" }
 			readonly property VeQuickItem _dcInputRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/dcInput" : "" }
 			readonly property VeQuickItem _acLoadsRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/acLoads" : "" }
 			readonly property VeQuickItem _dcLoadsRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/dcLoads" : "" }
 
 			readonly property VeQuickItem _solarCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/solar" : "" }
+			readonly property VeQuickItem _batteryCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/battery" : "" }
 			readonly property VeQuickItem _acInputCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acInput" : "" }
 			readonly property VeQuickItem _dcInputCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcInput" : "" }
 			readonly property VeQuickItem _acLoadsCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acLoads" : "" }
@@ -351,6 +397,7 @@ Item {
 						item.setValue(graphHistory._serializedModel(model, channelName))
 					}
 					_save(_solarCheckpointHistory, solarModel, "solarModel")
+					_save(_batteryCheckpointHistory, batteryModel, "batteryModel")
 					_save(_acInputCheckpointHistory, acInputModel, "acInputModel")
 					_save(_dcInputCheckpointHistory, dcInputModel, "dcInputModel")
 					_save(_acLoadsCheckpointHistory, acLoadsModel, "acLoadsModel")
@@ -376,6 +423,7 @@ Item {
 					}
 
 					_restoreChannel(_solarRuntimeHistory, _solarCheckpointHistory, "solarModel")
+					_restoreChannel(_batteryRuntimeHistory, _batteryCheckpointHistory, "batteryModel")
 					_restoreChannel(_acInputRuntimeHistory, _acInputCheckpointHistory, "acInputModel")
 					_restoreChannel(_dcInputRuntimeHistory, _dcInputCheckpointHistory, "dcInputModel")
 					_restoreChannel(_acLoadsRuntimeHistory, _acLoadsCheckpointHistory, "acLoadsModel")
@@ -416,6 +464,21 @@ Item {
 				}
 				function onValueChanged() {
 					graphHistory._restoreFromItem(graphHistory._solarRuntimeHistory, "solarModel")
+				}
+			}
+
+			readonly property Connections _batteryRuntimeHistoryConnection: Connections {
+				target: graphHistory._batteryRuntimeHistory
+				function onValidChanged() {
+					if (graphHistory._batteryRuntimeHistory.valid) {
+						graphHistory._restoreAll()
+						if (graphHistory._needsRuntimeSeed) {
+							graphHistory._publishRuntimeAll(true)
+						}
+					}
+				}
+				function onValueChanged() {
+					graphHistory._restoreFromItem(graphHistory._batteryRuntimeHistory, "batteryModel")
 				}
 			}
 
@@ -483,6 +546,15 @@ Item {
 				target: graphHistory._solarCheckpointHistory
 				function onValidChanged() {
 					if (graphHistory._solarCheckpointHistory.valid) {
+						graphHistory._restoreAll()
+					}
+				}
+			}
+
+			readonly property Connections _batteryCheckpointHistoryConnection: Connections {
+				target: graphHistory._batteryCheckpointHistory
+				function onValidChanged() {
+					if (graphHistory._batteryCheckpointHistory.valid) {
 						graphHistory._restoreAll()
 					}
 				}

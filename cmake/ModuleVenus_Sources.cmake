@@ -18,6 +18,7 @@ set (VictronVenusOS_QML_MODULE_SOURCES
     components/AcOutput.qml
     components/AcPhase.qml
     components/Arc.qml
+    components/BatteryDirectionIcon.qml
     components/ArcGauge.qml
     components/ArcGaugeQuantityRow.qml
     components/AsymmetricRoundedRectangle.qml

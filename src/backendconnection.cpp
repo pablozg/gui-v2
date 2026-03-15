@@ -709,6 +709,7 @@ void BackendConnection::ensureGraphHistorySettings()
 	QVariantList settings;
 	const QStringList settingPaths {
 		QStringLiteral("Gui2/GraphHistory/solar"),
+		QStringLiteral("Gui2/GraphHistory/battery"),
 		QStringLiteral("Gui2/GraphHistory/acInput"),
 		QStringLiteral("Gui2/GraphHistory/dcInput"),
 		QStringLiteral("Gui2/GraphHistory/acLoads"),

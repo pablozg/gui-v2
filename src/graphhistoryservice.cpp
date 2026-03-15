@@ -112,6 +112,7 @@ void GraphHistoryService::ensureTree()
 
 	const QStringList channels {
 		QStringLiteral("solar"),
+		QStringLiteral("battery"),
 		QStringLiteral("acInput"),
 		QStringLiteral("dcInput"),
 		QStringLiteral("acLoads"),

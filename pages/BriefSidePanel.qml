@@ -45,6 +45,40 @@ ColumnLayout {
 			}
 		}
 
+	BriefSidePanelWidget {
+		id: batteryWidget
+
+		title: CommonWords.battery
+		icon.source: "qrc:/images/icon_battery_24.svg"
+		quantityLabel.sourceType: VenusOS.ElectricalQuantity_Source_Dc
+		quantityLabel.dataObject: Global.system.battery
+		quantityLabel.showAbsoluteValue: batteryDirectionIcon.visible
+		quantityLabel.leftPadding: batteryDirectionIcon.visible ? (batteryDirectionIcon.width + Theme.geometry_acInputDirectionIcon_rightMargin) : 0
+		extraDataObject: Global.system.battery
+		extraIsAc: false
+		loadersActive: !isNaN(Global.system.battery.power)
+		visible: loadersActive
+
+		BatteryDirectionIcon {
+			id: batteryDirectionIcon
+			parent: batteryWidget.quantityLabel
+			anchors.verticalCenter: parent.verticalCenter
+			battery: Global.system.battery
+		}
+
+		sideComponent: LoadGraph {
+			externalSource: true
+			model: Global.graphHistory ? Global.graphHistory.batteryModel : []
+			modelLength: 120
+			animationEnabled: root.animationEnabled
+			aboveThresholdFillColor: Theme.color_blue
+			belowThresholdFillColor: Theme.color_green
+			initialModelValue: Global.graphHistory ? Global.graphHistory.batteryInitialModelValue : 0.5
+			zeroCentered: true
+			threshold: Global.graphHistory ? Global.graphHistory.batteryThreshold : 0.5
+		}
+	}
+
 	// In most cases there is only 1 generator, so don't worry about other ones here.
 	BriefSidePanelWidget {
 		id: generatorWidget
