@@ -32,7 +32,6 @@ Item {
 	on_DataObjectsReadyChanged: if (_dataObjectsReady) console.info("DataManager: data objects ready")
 	on_ReadyChanged: {
 		if (_ready) {
-			BackendConnection.ensureGraphHistorySettings()
 			console.info("DataManager: loading complete")
 			Global.dataManagerLoaded = true
 		}
@@ -59,11 +58,11 @@ Item {
 			QtObject {
 				id: graphHistory
 
-				readonly property int modelLength: 480
-				readonly property int samplesPerPoint: 15
-				readonly property int checkpointEveryPoints: 2880
+					// 720 points x 10 seconds keeps 2 hours of history while reducing update churn.
+					readonly property int modelLength: 720
+					readonly property int samplesPerPoint: 10
 
-				readonly property bool acInputShowsFeedIn: _nonGeneratorInput
+					readonly property bool acInputShowsFeedIn: _nonGeneratorInput
 						&& _nonGeneratorInput.inputInfo.minimumCurrent < 0
 				readonly property real acInputInitialModelValue: acInputShowsFeedIn ? 0.5 : 0
 				readonly property real acInputThreshold: isNaN(_acInputMaxAboveZeroMidPoint) ? 0 : 0.5
@@ -152,13 +151,12 @@ Item {
 
 				property int _solarAcc: 0; property real _solarSum: 0
 				property int _batteryAcc: 0; property real _batterySum: 0
-				property int _acInputAcc: 0; property real _acInputSum: 0
-				property int _dcInputAcc: 0; property real _dcInputSum: 0
-				property int _acLoadsAcc: 0; property real _acLoadsSum: 0
-				property int _dcLoadsAcc: 0; property real _dcLoadsSum: 0
-				property bool _dirty: false
-				property int _dirtyPointCount: 0
-				property bool _needsRuntimeSeed: false
+					property int _acInputAcc: 0; property real _acInputSum: 0
+					property int _dcInputAcc: 0; property real _dcInputSum: 0
+					property int _acLoadsAcc: 0; property real _acLoadsSum: 0
+					property int _dcLoadsAcc: 0; property real _dcLoadsSum: 0
+					property bool _dirty: false
+					property bool _needsRuntimeSeed: false
 
 				function _hasMeaningfulData(model, channelName) {
 					const initialValue = _initialValueForChannel(channelName)
@@ -215,36 +213,37 @@ Item {
 					}
 				}
 
-				function _publishRuntimeAll(force) {
-					if (!_publishesRuntimeHistory) {
-						return false
-					}
-					if (!force && !_dirty) {
-						return true
-					}
-
-					let allPublished = true
-					function _publish(channel, model, channelName) {
-						if (!BackendConnection.setGraphHistoryValue(channel, graphHistory._serializedModel(model, channelName))) {
-							allPublished = false
+					function _publishRuntimeAll(force) {
+						if (!_publishesRuntimeHistory) {
+							return false
 						}
+						if (!force && !_dirty) {
+							return true
+						}
+
+						let allPublished = true
+						function _publish(channel, model, channelName) {
+							if (!BackendConnection.setGraphHistoryValue(channel, graphHistory._serializedModel(model, channelName))) {
+								allPublished = false
+							}
+						}
+
+						_publish("solar", solarModel, "solarModel")
+						_publish("battery", batteryModel, "batteryModel")
+						_publish("acInput", acInputModel, "acInputModel")
+						_publish("dcInput", dcInputModel, "dcInputModel")
+						_publish("acLoads", acLoadsModel, "acLoadsModel")
+						_publish("dcLoads", dcLoadsModel, "dcLoadsModel")
+
+						if (allPublished) {
+							_dirty = false
+							_needsRuntimeSeed = false
+						} else if (force || _dirty) {
+							_needsRuntimeSeed = true
+						}
+
+						return allPublished
 					}
-
-					_publish("solar", solarModel, "solarModel")
-					_publish("battery", batteryModel, "batteryModel")
-					_publish("acInput", acInputModel, "acInputModel")
-					_publish("dcInput", dcInputModel, "dcInputModel")
-					_publish("acLoads", acLoadsModel, "acLoadsModel")
-					_publish("dcLoads", dcLoadsModel, "dcLoadsModel")
-
-					if (allPublished) {
-						_needsRuntimeSeed = false
-					} else if (force || _dirty) {
-						_needsRuntimeSeed = true
-					}
-
-					return allPublished
-				}
 
 			function _sample() {
 				let pushedPoint = false
@@ -364,93 +363,42 @@ Item {
 				}
 
 				if (pushedPoint) {
-					_dirtyPointCount++
 					if (!_publishRuntimeAll(false)) {
 						_needsRuntimeSeed = true
 					}
 				}
 			}
 
-			readonly property VeQuickItem _solarRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/solar" : "" }
-			readonly property VeQuickItem _batteryRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/battery" : "" }
-			readonly property VeQuickItem _acInputRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/acInput" : "" }
-			readonly property VeQuickItem _dcInputRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/dcInput" : "" }
-			readonly property VeQuickItem _acLoadsRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/acLoads" : "" }
-			readonly property VeQuickItem _dcLoadsRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/dcLoads" : "" }
-
-			readonly property VeQuickItem _solarCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/solar" : "" }
-			readonly property VeQuickItem _batteryCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/battery" : "" }
-			readonly property VeQuickItem _acInputCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acInput" : "" }
-			readonly property VeQuickItem _dcInputCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcInput" : "" }
-			readonly property VeQuickItem _acLoadsCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/acLoads" : "" }
-			readonly property VeQuickItem _dcLoadsCheckpointHistory: VeQuickItem { uid: Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui2/GraphHistory/dcLoads" : "" }
-
-				function _saveAll(force) {
-					if (!_dirty) return
-					if (!force && _dirtyPointCount < checkpointEveryPoints) return
-					let allSaved = true
-					function _save(item, model, channelName) {
-						if (!item || !item.uid || !item.valid) {
-							allSaved = false
-							return
-						}
-						item.setValue(graphHistory._serializedModel(model, channelName))
-					}
-					_save(_solarCheckpointHistory, solarModel, "solarModel")
-					_save(_batteryCheckpointHistory, batteryModel, "batteryModel")
-					_save(_acInputCheckpointHistory, acInputModel, "acInputModel")
-					_save(_dcInputCheckpointHistory, dcInputModel, "dcInputModel")
-					_save(_acLoadsCheckpointHistory, acLoadsModel, "acLoadsModel")
-					_save(_dcLoadsCheckpointHistory, dcLoadsModel, "dcLoadsModel")
-					if (allSaved) {
-						_dirty = false
-						_dirtyPointCount = 0
-					}
-				}
+				readonly property VeQuickItem _solarRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/solar" : "" }
+				readonly property VeQuickItem _batteryRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/battery" : "" }
+				readonly property VeQuickItem _acInputRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/acInput" : "" }
+				readonly property VeQuickItem _dcInputRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/dcInput" : "" }
+				readonly property VeQuickItem _acLoadsRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/acLoads" : "" }
+				readonly property VeQuickItem _dcLoadsRuntimeHistory: VeQuickItem { uid: graphHistory._runtimeHistoryServiceUid ? graphHistory._runtimeHistoryServiceUid + "/History/dcLoads" : "" }
 
 				function _restoreAll() {
-					let restoredFromCheckpoint = false
-
-					function _restoreChannel(runtimeItem, checkpointItem, channelName) {
-						const runtimeResult = graphHistory._restoreFromItem(runtimeItem, channelName)
-						if (runtimeResult.restored && runtimeResult.meaningful) {
-							return
-						}
-						const checkpointResult = graphHistory._restoreFromItem(checkpointItem, channelName)
-						if (checkpointResult.restored) {
-							restoredFromCheckpoint = true
-						}
+					function _restoreChannel(runtimeItem, channelName) {
+						graphHistory._restoreFromItem(runtimeItem, channelName)
 					}
 
-					_restoreChannel(_solarRuntimeHistory, _solarCheckpointHistory, "solarModel")
-					_restoreChannel(_batteryRuntimeHistory, _batteryCheckpointHistory, "batteryModel")
-					_restoreChannel(_acInputRuntimeHistory, _acInputCheckpointHistory, "acInputModel")
-					_restoreChannel(_dcInputRuntimeHistory, _dcInputCheckpointHistory, "dcInputModel")
-					_restoreChannel(_acLoadsRuntimeHistory, _acLoadsCheckpointHistory, "acLoadsModel")
-					_restoreChannel(_dcLoadsRuntimeHistory, _dcLoadsCheckpointHistory, "dcLoadsModel")
-
-					if (_publishesRuntimeHistory && restoredFromCheckpoint) {
-						_needsRuntimeSeed = true
-						_publishRuntimeAll(true)
-					}
+					_restoreChannel(_solarRuntimeHistory, "solarModel")
+					_restoreChannel(_batteryRuntimeHistory, "batteryModel")
+					_restoreChannel(_acInputRuntimeHistory, "acInputModel")
+					_restoreChannel(_dcInputRuntimeHistory, "dcInputModel")
+					_restoreChannel(_acLoadsRuntimeHistory, "acLoadsModel")
+					_restoreChannel(_dcLoadsRuntimeHistory, "dcLoadsModel")
 				}
 
-		readonly property Timer _sampleTimer: Timer {
-			running: Global.dataManagerLoaded && BackendConnection.type !== BackendConnection.MqttSource
-			repeat: true; interval: 1000
-			onTriggered: graphHistory._sample()
-		}
+				readonly property Timer _sampleTimer: Timer {
+					running: Global.dataManagerLoaded && BackendConnection.type !== BackendConnection.MqttSource
+					repeat: true; interval: 1000
+					onTriggered: graphHistory._sample()
+				}
 
-			readonly property Timer _saveTimer: Timer {
-				running: Global.dataManagerLoaded && BackendConnection.type !== BackendConnection.MqttSource
-				repeat: true; interval: 60000
-				onTriggered: graphHistory._saveAll(false)
-			}
-
-			readonly property Timer _restoreTimer: Timer {
-				interval: 500
-				onTriggered: graphHistory._restoreAll()
-			}
+				readonly property Timer _restoreTimer: Timer {
+					interval: 500
+					onTriggered: graphHistory._restoreAll()
+				}
 
 			readonly property Connections _solarRuntimeHistoryConnection: Connections {
 				target: graphHistory._solarRuntimeHistory
@@ -542,93 +490,11 @@ Item {
 				}
 			}
 
-				readonly property Connections _solarCheckpointHistoryConnection: Connections {
-					target: graphHistory._solarCheckpointHistory
-					function onValidChanged() {
-						if (graphHistory._solarCheckpointHistory.valid) {
-							graphHistory._restoreAll()
-						}
-					}
-					function onValueChanged() {
-						graphHistory._restoreAll()
-					}
-				}
-
-				readonly property Connections _batteryCheckpointHistoryConnection: Connections {
-					target: graphHistory._batteryCheckpointHistory
-					function onValidChanged() {
-						if (graphHistory._batteryCheckpointHistory.valid) {
-							graphHistory._restoreAll()
-						}
-					}
-					function onValueChanged() {
-						graphHistory._restoreAll()
-					}
-				}
-
-				readonly property Connections _acInputCheckpointHistoryConnection: Connections {
-					target: graphHistory._acInputCheckpointHistory
-					function onValidChanged() {
-						if (graphHistory._acInputCheckpointHistory.valid) {
-							graphHistory._restoreAll()
-						}
-					}
-					function onValueChanged() {
-						graphHistory._restoreAll()
-					}
-				}
-
-				readonly property Connections _dcInputCheckpointHistoryConnection: Connections {
-					target: graphHistory._dcInputCheckpointHistory
-					function onValidChanged() {
-						if (graphHistory._dcInputCheckpointHistory.valid) {
-							graphHistory._restoreAll()
-						}
-					}
-					function onValueChanged() {
-						graphHistory._restoreAll()
-					}
-				}
-
-				readonly property Connections _acLoadsCheckpointHistoryConnection: Connections {
-					target: graphHistory._acLoadsCheckpointHistory
-					function onValidChanged() {
-						if (graphHistory._acLoadsCheckpointHistory.valid) {
-							graphHistory._restoreAll()
-						}
-					}
-					function onValueChanged() {
-						graphHistory._restoreAll()
-					}
-				}
-
-				readonly property Connections _dcLoadsCheckpointHistoryConnection: Connections {
-					target: graphHistory._dcLoadsCheckpointHistory
-					function onValidChanged() {
-						if (graphHistory._dcLoadsCheckpointHistory.valid) {
-							graphHistory._restoreAll()
-						}
-					}
-					function onValueChanged() {
-						graphHistory._restoreAll()
-					}
-				}
-
-				readonly property Connections _appVisibilityConnection: Connections {
-					target: BackendConnection
-					function onApplicationVisibleChanged() {
-						if (!BackendConnection.applicationVisible) {
-							graphHistory._saveAll(true)
-						}
-					}
-				}
-
 				Component.onCompleted: {
 					Global.graphHistory = graphHistory
 					_restoreTimer.start()
 				}
-			Component.onDestruction: _saveAll(true)
-		}
+			}
 
 	Loader {
 		id: mockSetupLoader

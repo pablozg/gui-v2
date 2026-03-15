@@ -255,7 +255,6 @@
 
     "geometry_briefPage_sidePanel_width": 304,
     "geometry_briefPage_sidePanel_loadGraph_dotSize": 1,
-    "geometry_briefPage_sidePanel_loadGraph_intervalMs": 1000,
     "geometry_briefPage_sidePanel_loadGraph_width": 144,
     "geometry_briefPage_sidePanel_loadGraph_height": 51,
     "geometry_briefPage_sidePanel_loadGraph_horizontalGradient_width": 10,

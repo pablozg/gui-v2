@@ -385,7 +385,6 @@ void BackendConnection::setType(const SourceType type, const QString &address)
 		emit producerChanged();
 	}
 
-	m_graphHistorySettingsEnsured = false;
 #if !defined(VENUS_WEBASSEMBLY_BUILD)
 	if (m_graphHistoryService) {
 		m_graphHistoryService->deleteLater();
@@ -679,106 +678,6 @@ QUrl BackendConnection::demoImageFileName() const
 	static const QUrl filePath = QUrl::fromLocalFile("/data/demo-brief.png");
 	static const bool fileExists = QFile::exists(filePath.toLocalFile());
 	return fileExists ? filePath : QUrl();
-}
-
-void BackendConnection::ensureGraphHistorySettings()
-{
-#if defined(VENUS_WEBASSEMBLY_BUILD)
-	return;
-#else
-	if (m_graphHistorySettingsEnsured || m_type != DBusSource) {
-		return;
-	}
-
-	const QDBusConnection dbus = VeDbusConnection::getConnection();
-	if (!dbus.isConnected()) {
-		qWarning() << "Graph history settings: D-Bus connection is not available";
-		return;
-	}
-
-	QDBusInterface settingsInterface(
-			QStringLiteral("com.victronenergy.settings"),
-			QStringLiteral("/Settings"),
-			QStringLiteral("com.victronenergy.Settings"),
-			dbus);
-	if (!settingsInterface.isValid()) {
-		qWarning() << "Graph history settings: unable to access com.victronenergy.settings /Settings";
-		return;
-	}
-
-	QVariantList settings;
-	const QStringList settingPaths {
-		QStringLiteral("Gui2/GraphHistory/solar"),
-		QStringLiteral("Gui2/GraphHistory/battery"),
-		QStringLiteral("Gui2/GraphHistory/acInput"),
-		QStringLiteral("Gui2/GraphHistory/dcInput"),
-		QStringLiteral("Gui2/GraphHistory/acLoads"),
-		QStringLiteral("Gui2/GraphHistory/dcLoads"),
-	};
-
-	for (const QString &path : settingPaths) {
-		QVariantMap setting;
-		setting.insert(QStringLiteral("path"), path);
-		setting.insert(QStringLiteral("default"), QString());
-		setting.insert(QStringLiteral("silent"), true);
-		settings.append(setting);
-	}
-
-	const auto addSingleSetting = [&settingsInterface](const QString &path) {
-		const QString normalizedPath = path.startsWith(QLatin1Char('/')) ? path.mid(1) : path;
-		const int separatorIndex = normalizedPath.indexOf(QLatin1Char('/'));
-		if (separatorIndex <= 0 || separatorIndex >= normalizedPath.length() - 1) {
-			qWarning() << "Graph history settings: invalid AddSetting path:" << path;
-			return false;
-		}
-
-		const QString group = normalizedPath.left(separatorIndex);
-		const QString settingName = normalizedPath.mid(separatorIndex + 1);
-		const QDBusMessage addReply = settingsInterface.call(
-				QStringLiteral("AddSetting"),
-				group,
-				settingName,
-				QString(),
-				QStringLiteral("s"),
-				QString(),
-				QString());
-		if (addReply.type() == QDBusMessage::ErrorMessage) {
-			qWarning() << "Graph history settings: AddSetting failed for" << path << ":"
-					<< addReply.errorName() << addReply.errorMessage();
-			return false;
-		}
-
-		return true;
-	};
-
-	const QDBusMessage reply = settingsInterface.call(QStringLiteral("AddSettings"), settings);
-	if (reply.type() == QDBusMessage::ErrorMessage) {
-		if (reply.errorName() == QStringLiteral("org.freedesktop.DBus.Error.UnknownMethod")) {
-			qWarning() << "Graph history settings: AddSettings unavailable, falling back to AddSetting";
-			for (const QString &path : settingPaths) {
-				if (!addSingleSetting(path)) {
-					return;
-				}
-			}
-		} else {
-			qWarning() << "Graph history settings: AddSettings failed:" << reply.errorName() << reply.errorMessage();
-			return;
-		}
-	} else {
-		const QVariantList results = reply.arguments().value(0).toList();
-		for (const QVariant &resultValue : results) {
-			const QVariantMap result = resultValue.toMap();
-			if (result.value(QStringLiteral("error")).toInt() != 0) {
-				qWarning() << "Graph history settings: AddSettings returned error for"
-						<< result.value(QStringLiteral("path")).toString() << ":"
-						<< result;
-				return;
-			}
-		}
-	}
-
-	m_graphHistorySettingsEnsured = true;
-#endif
 }
 
 void BackendConnection::ensureGraphHistoryService(const QString &address)

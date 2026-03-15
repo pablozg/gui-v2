@@ -11,6 +11,7 @@ ColumnLayout {
 	id: root
 
 	property bool animationEnabled
+	readonly property real _uniformCurrentGaugeHeight: Theme.geometry_barGauge_vertical_width_large
 
 	readonly property AcInput generatorInput: Global.acInputs.input1?.source === VenusOS.AcInputs_InputSource_Generator ? Global.acInputs.input1
 			: Global.acInputs.input2?.source === VenusOS.AcInputs_InputSource_Generator ? Global.acInputs.input2
@@ -55,6 +56,8 @@ ColumnLayout {
 			Component {
 				id: cheapSolarGauge
 				CheapBarGauge {
+					width: parent.width
+					height: root._uniformCurrentGaugeHeight
 					orientation: Qt.Horizontal
 					valueType: VenusOS.Gauges_ValueType_RisingPercentage
 					value: solarCurrentRange.valueAsRatio
@@ -65,6 +68,8 @@ ColumnLayout {
 			Component {
 				id: prettySolarGauge
 				BarGauge {
+					width: parent.width
+					height: root._uniformCurrentGaugeHeight
 					orientation: Qt.Horizontal
 					valueType: VenusOS.Gauges_ValueType_RisingPercentage
 					value: solarCurrentRange.valueAsRatio
@@ -122,6 +127,8 @@ ColumnLayout {
 		Component {
 			id: cheapBatteryGauge
 			CheapBarGauge {
+				width: parent.width
+				height: root._uniformCurrentGaugeHeight
 				orientation: Qt.Horizontal
 				valueType: VenusOS.Gauges_ValueType_RisingPercentage
 				value: batteryCurrentRange.valueAsRatio
@@ -132,6 +139,8 @@ ColumnLayout {
 		Component {
 			id: prettyBatteryGauge
 			BarGauge {
+				width: parent.width
+				height: root._uniformCurrentGaugeHeight
 				orientation: Qt.Horizontal
 				valueType: VenusOS.Gauges_ValueType_RisingPercentage
 				value: batteryCurrentRange.valueAsRatio
@@ -171,7 +180,7 @@ ColumnLayout {
 		}
 		bottomComponent: ThreePhaseBarGauge {
 			width: parent.width
-			height: Theme.geometry_barGauge_vertical_width_large
+			height: root._uniformCurrentGaugeHeight
 			orientation: Qt.Horizontal
 			phaseModel: root.visible ? generatorInput.phases : null
 			minimumValue: generatorInput.inputInfo.minimumCurrent
@@ -222,7 +231,7 @@ ColumnLayout {
 
 		bottomComponent: ThreePhaseBarGauge {
 			width: parent.width
-			height: Theme.geometry_barGauge_vertical_width_large
+			height: root._uniformCurrentGaugeHeight
 			orientation: Qt.Horizontal
 			phaseModel: root.visible ? nonGeneratorInput.phases : null
 			minimumValue: nonGeneratorInput.inputInfo.minimumCurrent
@@ -307,7 +316,7 @@ ColumnLayout {
 				}
 		bottomComponent: ThreePhaseBarGauge {
 			width: parent.width
-			height: Theme.geometry_barGauge_vertical_width_large
+			height: root._uniformCurrentGaugeHeight
 			orientation: Qt.Horizontal
 			valueType: VenusOS.Gauges_ValueType_RisingPercentage
 			phaseModel: root.visible ? Global.system.load.ac.phases : null
