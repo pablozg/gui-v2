@@ -21,6 +21,7 @@ Item {
 	property color horizontalGradientColor1: backgroundColor
 	property color horizontalGradientColor2: "transparent"
 	property bool zeroCentered
+	property bool invertValues: false
 	property bool normalizeToVisibleMaximum: false
 	property bool trimLeadingInitialValues: false
 	property bool animationEnabled: true
@@ -74,7 +75,7 @@ Item {
 		}
 
 		if (!normalizeToVisibleMaximum || zeroCentered) {
-			return normalized
+			return _transformDisplayedModel(normalized)
 		}
 
 		let maxValue = 0
@@ -86,11 +87,20 @@ Item {
 		}
 
 		if (!(maxValue > 0)) {
-			return normalized
+			return _transformDisplayedModel(normalized)
 		}
 
-		return normalized.map(function(value) {
+		return _transformDisplayedModel(normalized.map(function(value) {
 			return isNaN(value) ? initialModelValue : Math.min(value / maxValue, 1)
+		}))
+	}
+
+	function _transformDisplayedModel(values) {
+		if (!invertValues) {
+			return values
+		}
+		return values.map(function(value) {
+			return isNaN(value) ? initialModelValue : 1 - value
 		})
 	}
 

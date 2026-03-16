@@ -111,7 +111,7 @@ OverviewWidget {
 			animationEnabled: root.animationEnabled
 			threshold: 0
 			normalizeToVisibleMaximum: true
-			trimLeadingInitialValues: true
+			trimLeadingInitialValues: false
 			aboveThresholdFillColor: "#FFD700"
 		}
 	}

@@ -221,9 +221,10 @@ ColumnLayout {
 			model: Global.graphHistory ? Global.graphHistory.acInputModel : []
 			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 			animationEnabled: root.animationEnabled
-			aboveThresholdFillColor: Theme.color_red
-			belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_blue
+			aboveThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_red
+			belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_red : Theme.color_blue
 			initialModelValue: Global.graphHistory ? Global.graphHistory.acInputInitialModelValue : 0
+			invertValues: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
 			zeroCentered: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
 			threshold: Global.graphHistory ? Global.graphHistory.acInputThreshold : 0
 		}

@@ -91,18 +91,19 @@ AcWidget {
 				right: parent.right
 				bottom: parent.bottom
 			}
-			height: Theme.geometry_briefPage_sidePanel_loadGraph_height
-			externalSource: true
-			backgroundColor: Theme.color_overviewPage_widget_background
-			model: Global.graphHistory ? Global.graphHistory.acInputModel : []
-			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
-			animationEnabled: root.animationEnabled
-			aboveThresholdFillColor: Theme.color_red
-			belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_blue
-			initialModelValue: Global.graphHistory ? Global.graphHistory.acInputInitialModelValue : 0
-			zeroCentered: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
-			threshold: Global.graphHistory ? Global.graphHistory.acInputThreshold : 0
-		}
+				height: Theme.geometry_briefPage_sidePanel_loadGraph_height
+				externalSource: true
+				backgroundColor: Theme.color_overviewPage_widget_background
+				model: Global.graphHistory ? Global.graphHistory.acInputModel : []
+				modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
+				animationEnabled: root.animationEnabled
+				aboveThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_red
+				belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_red : Theme.color_blue
+				initialModelValue: Global.graphHistory ? Global.graphHistory.acInputInitialModelValue : 0
+				invertValues: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
+				zeroCentered: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
+				threshold: Global.graphHistory ? Global.graphHistory.acInputThreshold : 0
+			}
 	}
 
 	Label {
