@@ -24,8 +24,9 @@ int PhaseModel::phaseCount() const
 
 void PhaseModel::setPhaseCount(int phaseCount)
 {
-	if (phaseCount != m_phaseCount) {
-		m_phaseCount = phaseCount;
+	const int sanitizedPhaseCount = qMax(0, phaseCount);
+	if (sanitizedPhaseCount != m_phaseCount) {
+		m_phaseCount = sanitizedPhaseCount;
 		resetModel();
 		emit phaseCountChanged();
 	}

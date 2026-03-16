@@ -754,12 +754,6 @@ SwipeViewPage {
 	SolarYieldWidget {
 		id: solarOutputWidget
 
-		readonly property Item connectorReferenceWidget: layoutConditions.showAcLoads
-				? acLoadsWidget
-				: layoutConditions.showEssentialLoads
-					? essentialLoadsWidget
-					: solarOutputWidget
-		readonly property real connectorMidpointX: connectorReferenceWidget.x - Theme.geometry_overviewPage_connector_anchor_width
 		size: VenusOS.OverviewWidget_Size_Zero
 		secondaryTitle: layoutConditions.splitSolarView ? CommonWords.ac_out : ""
 		solarDataObject: Global.system.solar.outputSide
@@ -783,12 +777,11 @@ SwipeViewPage {
 			id: outputAcSolarConnector
 
 			parent: root
-			startWidget: solarOutputWidget
-			startLocation: VenusOS.WidgetConnector_Location_Left
-			endWidget: inverterChargerWidget
-			endLocation: VenusOS.WidgetConnector_Location_Right
-			endOffsetY: inverterToSolarOutputAnchor.offsetY
-			midpointAbsoluteX: solarOutputWidget.connectorMidpointX
+			startWidget: inverterChargerWidget
+			startLocation: VenusOS.WidgetConnector_Location_Right
+			startOffsetY: inverterToSolarOutputAnchor.offsetY
+			endWidget: solarOutputWidget
+			endLocation: VenusOS.WidgetConnector_Location_Left
 			visible: defaultVisible && !isNaN(Global.system.solar.outputSide.acPower)
 			expanded: root._expandLayout
 			frameAnimation: overviewPageRootAnimation
@@ -797,7 +790,7 @@ SwipeViewPage {
 
 			animationMode: root.isCurrentPage
 					&& Math.abs(Global.system.solar.outputSide.acPower || 0) > Theme.geometry_overviewPage_connector_animationPowerThreshold
-						? VenusOS.WidgetConnector_AnimationMode_StartToEnd
+						? VenusOS.WidgetConnector_AnimationMode_EndToStart
 						: VenusOS.WidgetConnector_AnimationMode_NotAnimated
 		}
 	}
