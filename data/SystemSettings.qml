@@ -301,7 +301,7 @@ QtObject {
 	}
 
 	property VeQuickItem time: VeQuickItem {
-		uid: Global.venusPlatform.serviceUid + "/Device/Time"
+		uid: Global.venusPlatform ? Global.venusPlatform.serviceUid + "/Device/Time" : ""
 		onValueChanged: {
 			if (value !== undefined) {
 				ClockTime.clockTime = value
@@ -313,7 +313,8 @@ QtObject {
 			interval: 60000
 			repeat: true
 			triggeredOnStart: true
-			running: BackendConnection.applicationVisible // even if !Global.timersEnabled, in case screen blank duration is short
+			running: BackendConnection.applicationVisible
+					&& BackendConnection.state === BackendConnection.Ready
 			onTriggered: root.time.getValue(true)   // force value refresh
 		}
 	}
@@ -326,6 +327,17 @@ QtObject {
 				Date.timeZoneUpdated()      // Inform the JS engine that the system tz has changed.
 				root.time.getValue(true)    // ensure the time value is the latest one from the server
 			}
+		}
+
+		// VRM connections may not deliver the initial timezone value before the UI starts
+		// rendering, so force a refresh once the backend is ready and periodically afterwards.
+		property Timer _updateTimeZone: Timer {
+			interval: 300000
+			repeat: true
+			triggeredOnStart: true
+			running: BackendConnection.applicationVisible
+					&& BackendConnection.state === BackendConnection.Ready
+			onTriggered: root.timeZone.getValue(true)
 		}
 	}
 

@@ -5,11 +5,26 @@
 
 #include "clocktime.h"
 
+#include <QDebug>
+
 #if !defined(VENUS_WEBASSEMBLY_BUILD)
 #include <QTimeZone>
 #endif
 
 using namespace Victron::VenusOS;
+
+namespace {
+
+QString normalizedTimeZone(QString tz)
+{
+	tz = tz.trimmed();
+	while (tz.startsWith('/')) {
+		tz.remove(0, 1);
+	}
+	return tz;
+}
+
+}
 
 ClockTime::ClockTime(QObject *parent)
 	: QObject(parent)
@@ -110,8 +125,9 @@ QString ClockTime::systemTimeZone() const
 
 void ClockTime::setSystemTimeZone(const QString &tz)
 {
-	if (m_systemTimeZone != tz) {
-		m_systemTimeZone = tz;
+	const QString normalizedTz = normalizedTimeZone(tz);
+	if (m_systemTimeZone != normalizedTz) {
+		m_systemTimeZone = normalizedTz;
 		updateTime(clockTime());
 		emit systemTimeZoneChanged();
 	}
@@ -187,9 +203,10 @@ void ClockTime::updateTime(qint64 secsSinceEpoch)
 	}
 
 	const QDateTime currentUtc = QDateTime::fromSecsSinceEpoch(secsSinceEpoch, Qt::UTC);
+	const QString timeZone = normalizedTimeZone(m_systemTimeZone);
 
-	if (m_systemTimeZone.compare(QStringLiteral("/UTC"), Qt::CaseInsensitive) == 0
-			|| m_systemTimeZone.compare(QStringLiteral("UTC"), Qt::CaseInsensitive) == 0) {
+	if (timeZone.isEmpty()
+			|| timeZone.compare(QStringLiteral("UTC"), Qt::CaseInsensitive) == 0) {
 		setDateTime(currentUtc);
 	} else {
 #if defined(VENUS_WEBASSEMBLY_BUILD)
@@ -198,7 +215,13 @@ void ClockTime::updateTime(qint64 secsSinceEpoch)
 		// The local time will be the local time of the browser.
 		setDateTime(currentUtc.toLocalTime());
 #else
-		setDateTime(currentUtc.toTimeZone(QTimeZone(m_systemTimeZone.toUtf8())));
+		const QTimeZone qtTimeZone(timeZone.toUtf8());
+		if (qtTimeZone.isValid()) {
+			setDateTime(currentUtc.toTimeZone(qtTimeZone));
+		} else {
+			qWarning() << "ClockTime: invalid system timezone, falling back to UTC:" << m_systemTimeZone;
+			setDateTime(currentUtc);
+		}
 #endif
 	}
 
