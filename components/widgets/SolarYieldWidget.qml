@@ -8,23 +8,36 @@ import Victron.VenusOS
 
 OverviewWidget {
 	id: root
+	property var solarDataObject: Global.system.solar
+	property bool phaseDataEnabled: true
+	property bool historyEnabled: true
+	property bool currentGaugeEnabled: true
+	property bool forceListNavigation: false
 
 	readonly property PvInverter _singlePvInverter: PvInverter {
 		serviceUid: Global.solarInputs.pvInverterDevices.firstObject?.serviceUid ?? ""
 	}
-	readonly property bool _showPhaseData: Global.solarInputs.pvInverterDevices.count === 1
+	readonly property bool _showPhaseData: root.phaseDataEnabled
+			&& Global.solarInputs.pvInverterDevices.count === 1
 			&& Global.solarInputs.devices.count === 0
 			&& _singlePvInverter.phases.count > 1
-	readonly property bool _showCurrentGauge: root.size >= VenusOS.OverviewWidget_Size_M
-			&& !isNaN(Global.system.solar.current)
-			&& !isNaN(Global.system.solar.maximumCurrent)
-			&& Global.system.solar.maximumCurrent > 0
+	readonly property bool _showCurrentGauge: root.currentGaugeEnabled
+			&& root.size >= VenusOS.OverviewWidget_Size_M
+			&& root.solarDataObject !== null
+			&& root.solarDataObject !== undefined
+			&& !isNaN(root.solarDataObject.current)
+			&& !isNaN(root.solarDataObject.maximumCurrent)
+			&& root.solarDataObject.maximumCurrent > 0
 	readonly property real _sideGaugeInset: _showCurrentGauge
 			? Theme.geometry_barGauge_vertical_width_large + Theme.geometry_overviewPage_widget_sideGauge_margins
 			: 0
 	readonly property int _currentGaugeStatus: Theme.getValueStatus(solarCurrentRange.valueAsRatio * 100, VenusOS.Gauges_ValueType_RisingPercentage)
 
 	onClicked: {
+		if (root.forceListNavigation) {
+			Global.pageManager.pushPage("/pages/solar/SolarInputListPage.qml", { "title": root.title })
+			return
+		}
 		const singleDeviceOnly = (Global.solarInputs.devices.count + Global.solarInputs.pvInverterDevices.count) === 1
 		if (singleDeviceOnly && Global.solarInputs.devices.count === 1) {
 			Global.pageManager.pushPage("/pages/solar/SolarDevicePage.qml",
@@ -43,16 +56,15 @@ OverviewWidget {
 	type: VenusOS.OverviewWidget_Type_Solar
 	enabled: true
 	rightPadding: root._sideGaugeInset
-	quantityLabel.dataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? Global.system.solar : null
-	overviewExtraDataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? Global.system.solar : null
-	overviewExtraIsAc: root.size !== VenusOS.OverviewWidget_Size_Zero && Global.system.solar.voltageIsAc
+	quantityLabel.dataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? root.solarDataObject : null
+	overviewExtraDataObject: root.size !== VenusOS.OverviewWidget_Size_Zero ? root.solarDataObject : null
+	overviewExtraIsAc: root.size !== VenusOS.OverviewWidget_Size_Zero && !!root.solarDataObject && root.solarDataObject.voltageIsAc
 	preferredSize: extraContentLoader.status !== Loader.Null
 			? VenusOS.OverviewWidget_PreferredSize_PreferLarge
 			: VenusOS.OverviewWidget_PreferredSize_Any
 
-	// Solar yield history is only available for PV chargers, and phase data is only available for
-	// PV inverters. So, if there are only solar chargers, show the solar history; otherwise if
-	// there is a single PV inverter, show its phase data.
+	// Per-side widgets use the same component, but the history model is only meaningful for the
+	// overall solar total. In split mode the caller disables history/phase data.
 	extraContentChildren: [
 		Loader {
 			id: extraContentLoader
@@ -71,12 +83,12 @@ OverviewWidget {
 			}
 			active: root._showPhaseData
 					? root.size >= VenusOS.OverviewWidget_Size_L
-					: root.size >= VenusOS.OverviewWidget_Size_M
+					: root.historyEnabled && root.size >= VenusOS.OverviewWidget_Size_M
 			sourceComponent: {
 				if (root._showPhaseData) {
 					return phaseComponent
 				}
-				return historyComponent
+				return root.historyEnabled ? historyComponent : null
 			}
 		}
 
@@ -118,9 +130,9 @@ OverviewWidget {
 
 	ValueRange {
 		id: solarCurrentRange
-		value: root._showCurrentGauge ? Math.abs(Global.system.solar.current) : NaN
+		value: root._showCurrentGauge ? Math.abs(root.solarDataObject.current) : NaN
 		minimumValue: 0
-		maximumValue: Global.system.solar.maximumCurrent
+		maximumValue: root.solarDataObject ? root.solarDataObject.maximumCurrent : NaN
 	}
 
 	Loader {

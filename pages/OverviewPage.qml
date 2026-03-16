@@ -58,6 +58,8 @@ SwipeViewPage {
 		for (let widgetType in _createdWidgets) {
 			_createdWidgets[widgetType].size = VenusOS.OverviewWidget_Size_Zero
 		}
+		solarInputWidget.size = VenusOS.OverviewWidget_Size_Zero
+		solarOutputWidget.size = VenusOS.OverviewWidget_Size_Zero
 		_resetLeftWidgets()
 		_resetRightWidgets()
 
@@ -268,9 +270,6 @@ SwipeViewPage {
 		case VenusOS.OverviewWidget_Type_Evcs:
 			widget = evcsComponent.createObject(root, args)
 			break
-		case VenusOS.OverviewWidget_Type_Solar:
-			widget = solarComponent.createObject(root, args)
-			break
 		default:
 			console.warn('Cannot create widget of unsupported type:', type)
 			return null
@@ -306,10 +305,8 @@ SwipeViewPage {
 			}
 		}
 
-		// Add solar widget
-		if (Global.solarInputs.inputCount > 0) {
-			widgetCandidates.splice(_leftWidgetInsertionIndex(VenusOS.OverviewWidget_Type_Solar, widgetCandidates),
-					0, _createWidget(VenusOS.OverviewWidget_Type_Solar))
+		if (layoutConditions.showSolarInput) {
+			widgetCandidates.splice(_leftWidgetInsertionIndex(VenusOS.OverviewWidget_Type_Solar, widgetCandidates), 0, solarInputWidget)
 		}
 		_leftWidgets = widgetCandidates
 
@@ -384,14 +381,23 @@ SwipeViewPage {
 		let widgets = []
 		if (layoutConditions.showAcLoads) {
 			widgets.push(acLoadsWidget)
+			if (layoutConditions.showSolarOutput && !layoutConditions.showEssentialLoads) {
+				widgets.push(solarOutputWidget)
+			}
 		}
 		if (Global.evChargers.model.count > 0) {
 			widgets.push(_createWidget(VenusOS.OverviewWidget_Type_Evcs))
 		}
 		if (layoutConditions.showEssentialLoads) {
 			widgets.push(essentialLoadsWidget)
+			if (layoutConditions.showSolarOutput) {
+				widgets.push(solarOutputWidget)
+			}
 		} else {
 			essentialLoadsWidget.size = VenusOS.OverviewWidget_Size_Zero
+		}
+		if (layoutConditions.showSolarOutput && widgets.indexOf(solarOutputWidget) < 0) {
+			widgets.push(solarOutputWidget)
 		}
 		if (layoutConditions.showDcLoads) {
 			widgets.push(_createWidget(VenusOS.OverviewWidget_Type_DcLoads))
@@ -525,11 +531,17 @@ SwipeViewPage {
 		readonly property bool showDcInputs: Global.dcInputs?.model.count ?? 0 > 0
 		onShowDcInputsChanged: Qt.callLater(root._resetWidgets)
 
-		// Affects whether SolarYieldWidget is shown, and its widget size.
+		// Affects whether the solar widgets are shown, and their widget sizes.
 		readonly property int pvChargerCount: Global.solarInputs?.devices.count ?? 0
 		onPvChargerCountChanged: Qt.callLater(root._resetWidgets)
 		readonly property int pvInverterCount: Global.solarInputs?.pvInverterDevices.count ?? 0
 		onPvInverterCountChanged: Qt.callLater(root._resetWidgets)
+		readonly property bool showSolarInput: Global.system?.solar.hasInputSideSolar ?? false
+		onShowSolarInputChanged: Qt.callLater(root._resetWidgets)
+		readonly property bool showSolarOutput: Global.system?.solar.hasAcOutputPv ?? false
+		onShowSolarOutputChanged: Qt.callLater(root._resetWidgets)
+		readonly property bool splitSolarView: showSolarInput && showSolarOutput
+		onSplitSolarViewChanged: Qt.callLater(root._resetWidgets)
 
 		// Affects whether AcLoadsWidget is shown.
 		readonly property bool showAcLoads: Global.system?.hasAcLoads || Global.evChargers?.model.count > 0
@@ -676,64 +688,110 @@ SwipeViewPage {
 		}
 	}
 
-	Component {
-		id: solarComponent
+	SolarYieldWidget {
+		id: solarInputWidget
 
-		SolarYieldWidget {
-			id: solarWidget
+		size: VenusOS.OverviewWidget_Size_Zero
+		secondaryTitle: layoutConditions.splitSolarView ? CommonWords.ac_in : ""
+		solarDataObject: Global.system.solar.inputSide
+		phaseDataEnabled: !layoutConditions.splitSolarView
+		historyEnabled: !layoutConditions.splitSolarView
+		currentGaugeEnabled: !layoutConditions.splitSolarView
+		forceListNavigation: layoutConditions.splitSolarView
+		expanded: root._expandLayout
+		animateGeometry: root._animateGeometry
+		animationEnabled: root.animationEnabled
+		connectors: [ inputAcSolarConnector, inputDcSolarConnector ]
 
+		Keys.onRightPressed: root._horizontalKeyNavigation(solarInputWidget, root._centerWidgets, root._lastFocusedCenterWidget)
+
+		WidgetConnectorAnchor {
+			location: VenusOS.WidgetConnector_Location_Right
+			visible: inputAcSolarConnector.visible || inputDcSolarConnector.visible
+		}
+
+		WidgetConnector {
+			id: inputAcSolarConnector
+
+			parent: root
+			startWidget: solarInputWidget
+			startLocation: VenusOS.WidgetConnector_Location_Right
+			endWidget: inverterChargerWidget
+			endLocation: VenusOS.WidgetConnector_Location_Left
+			visible: defaultVisible && !isNaN(Global.system.solar.inputSide.acPower)
 			expanded: root._expandLayout
+			frameAnimation: overviewPageRootAnimation
 			animateGeometry: root._animateGeometry
 			animationEnabled: root.animationEnabled
-			connectors: [ acSolarConnector, dcSolarConnector ]
 
-			Keys.onRightPressed: root._horizontalKeyNavigation(solarWidget, root._centerWidgets, root._lastFocusedCenterWidget)
+			animationMode: root.isCurrentPage
+					&& Math.abs(Global.system.solar.inputSide.acPower || 0) > Theme.geometry_overviewPage_connector_animationPowerThreshold
+						? VenusOS.WidgetConnector_AnimationMode_StartToEnd
+						: VenusOS.WidgetConnector_AnimationMode_NotAnimated
+		}
 
-			WidgetConnectorAnchor {
-				location: VenusOS.WidgetConnector_Location_Right
-				visible: acSolarConnector.visible || dcSolarConnector.visible
-			}
+		WidgetConnector {
+			id: inputDcSolarConnector
 
-			WidgetConnector {
-				id: acSolarConnector
+			parent: root
+			startWidget: solarInputWidget
+			startLocation: VenusOS.WidgetConnector_Location_Right
+			endWidget: batteryWidget
+			endLocation: VenusOS.WidgetConnector_Location_Left
+			visible: defaultVisible && !isNaN(Global.system.solar.inputSide.dcPower)
+			expanded: root._expandLayout
+			frameAnimation: overviewPageRootAnimation
+			animateGeometry: root._animateGeometry
+			animationEnabled: root.animationEnabled
 
-				parent: root
-				startWidget: solarWidget
-				startLocation: VenusOS.WidgetConnector_Location_Right
-				endWidget: inverterChargerWidget
-				endLocation: VenusOS.WidgetConnector_Location_Left
-				visible: defaultVisible && !isNaN(Global.system.solar.acPower)
-				expanded: root._expandLayout
-				frameAnimation: overviewPageRootAnimation
-				animateGeometry: root._animateGeometry
-				animationEnabled: root.animationEnabled
+			animationMode: root.isCurrentPage
+					&& Math.abs(Global.system.solar.inputSide.dcPower || 0) > Theme.geometry_overviewPage_connector_animationPowerThreshold
+						? VenusOS.WidgetConnector_AnimationMode_StartToEnd
+						: VenusOS.WidgetConnector_AnimationMode_NotAnimated
+		}
+	}
 
-				// Energy flows to Inverter/Charger if there is any PV Inverter power (i.e. AC)
-				animationMode: root.isCurrentPage
-						&& Math.abs(Global.system.solar.acPower || 0) > Theme.geometry_overviewPage_connector_animationPowerThreshold
-							   ? VenusOS.WidgetConnector_AnimationMode_StartToEnd
-							   : VenusOS.WidgetConnector_AnimationMode_NotAnimated
-			}
-			WidgetConnector {
-				id: dcSolarConnector
+	SolarYieldWidget {
+		id: solarOutputWidget
 
-				parent: root
-				startWidget: solarWidget
-				startLocation: VenusOS.WidgetConnector_Location_Right
-				endWidget: batteryWidget
-				endLocation: VenusOS.WidgetConnector_Location_Left
-				visible: defaultVisible && !isNaN(Global.system.solar.dcPower)
-				expanded: root._expandLayout
-				frameAnimation: overviewPageRootAnimation
-				animateGeometry: root._animateGeometry
-				animationEnabled: root.animationEnabled
+		size: VenusOS.OverviewWidget_Size_Zero
+		secondaryTitle: layoutConditions.splitSolarView ? CommonWords.ac_out : ""
+		solarDataObject: Global.system.solar.outputSide
+		phaseDataEnabled: !layoutConditions.splitSolarView
+		historyEnabled: !layoutConditions.splitSolarView
+		currentGaugeEnabled: !layoutConditions.splitSolarView
+		forceListNavigation: layoutConditions.splitSolarView
+		expanded: root._expandLayout
+		animateGeometry: root._animateGeometry
+		animationEnabled: root.animationEnabled
+		connectors: [ outputAcSolarConnector ]
 
-				// Energy flows to battery if there is any PV Charger power (i.e. DC, so solar is charging battery)
-				animationMode: root.isCurrentPage
-						&& Math.abs(Global.system.solar.dcPower) > Theme.geometry_overviewPage_connector_animationPowerThreshold
-							   ? VenusOS.WidgetConnector_AnimationMode_StartToEnd
-							   : VenusOS.WidgetConnector_AnimationMode_NotAnimated
-			}
+		Keys.onLeftPressed: root._horizontalKeyNavigation(solarOutputWidget, root._centerWidgets, root._lastFocusedCenterWidget)
+
+		WidgetConnectorAnchor {
+			location: VenusOS.WidgetConnector_Location_Left
+			visible: outputAcSolarConnector.visible
+		}
+
+		WidgetConnector {
+			id: outputAcSolarConnector
+
+			parent: root
+			startWidget: solarOutputWidget
+			startLocation: VenusOS.WidgetConnector_Location_Left
+			endWidget: inverterChargerWidget
+			endLocation: VenusOS.WidgetConnector_Location_Right
+			endOffsetY: inverterToSolarOutputAnchor.offsetY
+			visible: defaultVisible && !isNaN(Global.system.solar.outputSide.acPower)
+			expanded: root._expandLayout
+			frameAnimation: overviewPageRootAnimation
+			animateGeometry: root._animateGeometry
+			animationEnabled: root.animationEnabled
+
+			animationMode: root.isCurrentPage
+					&& Math.abs(Global.system.solar.outputSide.acPower || 0) > Theme.geometry_overviewPage_connector_animationPowerThreshold
+						? VenusOS.WidgetConnector_AnimationMode_StartToEnd
+						: VenusOS.WidgetConnector_AnimationMode_NotAnimated
 		}
 	}
 
@@ -754,7 +812,7 @@ SwipeViewPage {
 			id: inverterLeftConnectorAnchor
 			location: VenusOS.WidgetConnector_Location_Left
 			visible: Global.acInputs.findValidSource() !== VenusOS.AcInputs_InputSource_NotAvailable
-					|| !isNaN(Global.system.solar.acPower)
+					|| inputAcSolarConnector.visible
 		}
 		WidgetConnectorAnchor {
 			id: inverterToAcLoadsAnchor
@@ -762,6 +820,13 @@ SwipeViewPage {
 			visible: inverterToAcLoadsConnector.visible
 			y: inverterToAcLoadsConnector.straighten === VenusOS.WidgetConnector_Straighten_None ? defaultY
 				   : acLoadsToInverterAnchor.y
+		}
+		WidgetConnectorAnchor {
+			id: inverterToSolarOutputAnchor
+			location: VenusOS.WidgetConnector_Location_Right
+			visible: outputAcSolarConnector.visible
+			offsetY: (layoutConditions.showEssentialLoads ? 2 : 1)
+					* (Theme.geometry_overviewPage_connector_anchor_height + Theme.geometry_overviewPage_connector_anchor_spacing)
 		}
 		WidgetConnectorAnchor {
 			location: VenusOS.WidgetConnector_Location_Bottom

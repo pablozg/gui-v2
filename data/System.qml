@@ -74,52 +74,154 @@ QtObject {
 		property bool voltageIsAc: false
 		property real maximumPower: NaN
 		property real maximumCurrent: NaN
+		readonly property bool hasAcInputPv: pvOnGrid.hasPower || pvOnGenset.hasPower
+		readonly property bool hasAcOutputPv: pvOnOutput.hasPower
+		readonly property bool hasDcPv: _dcPvPower.valid || _dcPvCurrent.valid
+		readonly property bool hasInputSideSolar: hasAcInputPv || hasDcPv
 
-		function _refresh() {
-			acPower = _pvMonitor.totalPower
-			acCurrent = _pvMonitor.totalCurrent
-			dcPower = _dcPvPower.valid ? _dcPvPower.value : NaN
-			dcCurrent = _dcPvCurrent.valid ? _dcPvCurrent.value : NaN
-			maximumPower = _maximumPower.valid ? _maximumPower.value : NaN
-			power = Units.sumRealNumbers(acPower, dcPower)
+		readonly property QtObject inputSide: QtObject {
+			property real power: NaN
+			property real acPower: NaN
+			property real dcPower: NaN
+			property real acCurrent: NaN
+			property real dcCurrent: NaN
+			property real current: NaN
+			property real voltage: NaN
+			property bool voltageIsAc: false
+			property real maximumPower: NaN
+			property real maximumCurrent: NaN
+		}
 
-			const acMeasurementsAvailable = !isNaN(acCurrent) || !isNaN(_pvMonitor.voltage)
-			const dcMeasurementsAvailable = !isNaN(dcCurrent)
+		readonly property QtObject outputSide: QtObject {
+			property real power: NaN
+			property real acPower: NaN
+			property real dcPower: NaN
+			property real acCurrent: NaN
+			property real dcCurrent: NaN
+			property real current: NaN
+			property real voltage: NaN
+			property bool voltageIsAc: false
+			property real maximumPower: NaN
+			property real maximumCurrent: NaN
+		}
+
+		function _sumValues() {
+			let total = NaN
+			for (let i = 0; i < arguments.length; ++i) {
+				total = Units.sumRealNumbers(total, arguments[i])
+			}
+			return total
+		}
+
+		function _mergeVoltages() {
+			let mergedVoltage = NaN
+			let voltageMismatch = false
+			for (let i = 0; i < arguments.length; ++i) {
+				const value = arguments[i]
+				if (isNaN(value)) {
+					continue
+				}
+				if (isNaN(mergedVoltage)) {
+					mergedVoltage = value
+				} else if (Math.abs(mergedVoltage - value) > 1) {
+					voltageMismatch = true
+				}
+			}
+			return voltageMismatch ? NaN : mergedVoltage
+		}
+
+		function _updateSource(target, acPowerValue, acCurrentValue, acVoltageValue, dcPowerValue, dcCurrentValue, maximumPowerValue) {
+			target.acPower = acPowerValue
+			target.acCurrent = acCurrentValue
+			target.dcPower = dcPowerValue
+			target.dcCurrent = dcCurrentValue
+			target.maximumPower = maximumPowerValue
+			target.power = _sumValues(acPowerValue, dcPowerValue)
+
+			const acMeasurementsAvailable = !isNaN(acCurrentValue) || !isNaN(acVoltageValue)
+			const dcMeasurementsAvailable = !isNaN(dcCurrentValue)
 			if (acMeasurementsAvailable && !dcMeasurementsAvailable) {
-				current = acCurrent
-				voltage = _pvMonitor.voltage
-				voltageIsAc = !isNaN(voltage)
+				target.current = acCurrentValue
+				target.voltage = acVoltageValue
+				target.voltageIsAc = !isNaN(acVoltageValue)
 			} else if (dcMeasurementsAvailable && !acMeasurementsAvailable) {
-				current = dcCurrent
-				voltage = NaN // Solar DC voltage is not aggregated by systemcalc.
-				voltageIsAc = false
+				target.current = dcCurrentValue
+				target.voltage = NaN
+				target.voltageIsAc = false
 			} else {
 				// Mixed AC+DC solar has no single meaningful V/A pair to display.
-				current = NaN
-				voltage = NaN
-				voltageIsAc = false
+				target.current = NaN
+				target.voltage = NaN
+				target.voltageIsAc = false
 			}
 
-			const configuredMaximumCurrent = (!isNaN(maximumPower) && !isNaN(voltage) && voltage !== 0)
-					? Math.abs(maximumPower / voltage)
+			const configuredMaximumCurrent = (!isNaN(maximumPowerValue) && !isNaN(target.voltage) && target.voltage !== 0)
+					? Math.abs(maximumPowerValue / target.voltage)
 					: NaN
-			const absoluteCurrent = Math.abs(current)
-			let nextMaximumCurrent = maximumCurrent
+			const absoluteCurrent = Math.abs(target.current)
+			let nextMaximumCurrent = target.maximumCurrent
 			if (!isNaN(configuredMaximumCurrent) && (isNaN(nextMaximumCurrent) || configuredMaximumCurrent > nextMaximumCurrent)) {
 				nextMaximumCurrent = configuredMaximumCurrent
 			}
 			if (!isNaN(absoluteCurrent) && (isNaN(nextMaximumCurrent) || absoluteCurrent > nextMaximumCurrent)) {
 				nextMaximumCurrent = absoluteCurrent
 			}
-			maximumCurrent = nextMaximumCurrent
+			target.maximumCurrent = nextMaximumCurrent
+		}
+
+		function _refresh() {
+			const inputAcPower = _sumValues(pvOnGrid.totalPhasePower(), pvOnGenset.totalPhasePower())
+			const inputAcCurrent = _sumValues(pvOnGrid.current, pvOnGenset.current)
+			const inputAcVoltage = _mergeVoltages(pvOnGrid.voltage, pvOnGenset.voltage)
+			const outputAcPower = pvOnOutput.totalPhasePower()
+			const outputAcCurrent = pvOnOutput.current
+			const outputAcVoltage = pvOnOutput.voltage
+			const dcPowerValue = _dcPvPower.valid ? _dcPvPower.value : NaN
+			const dcCurrentValue = _dcPvCurrent.valid ? _dcPvCurrent.value : NaN
+			const configuredMaximumPower = _maximumPower.valid ? _maximumPower.value : NaN
+
+			_updateSource(
+					inputSide,
+					inputAcPower,
+					inputAcCurrent,
+					inputAcVoltage,
+					dcPowerValue,
+					dcCurrentValue,
+					hasAcOutputPv ? NaN : configuredMaximumPower)
+
+			_updateSource(
+					outputSide,
+					outputAcPower,
+					outputAcCurrent,
+					outputAcVoltage,
+					NaN,
+					NaN,
+					hasInputSideSolar ? NaN : configuredMaximumPower)
+
+			_updateSource(
+					solarData,
+					_sumValues(inputAcPower, outputAcPower),
+					_sumValues(inputAcCurrent, outputAcCurrent),
+					_mergeVoltages(inputAcVoltage, outputAcVoltage),
+					dcPowerValue,
+					dcCurrentValue,
+					configuredMaximumPower)
 		}
 
 		readonly property VeQuickItem _maximumPower: VeQuickItem {
 			uid: Global.systemSettings.serviceUid + "/Settings/Gui/Gauges/Pv/Power/Max"
 		}
 
-		readonly property PvMonitor _pvMonitor: PvMonitor {
-			systemServiceUid: root.serviceUid
+		readonly property ObjectAcConnection pvOnGrid: ObjectAcConnection {
+			bindPrefix: root.serviceUid + "/Ac/PvOnGrid"
+		}
+
+		readonly property ObjectAcConnection pvOnGenset: ObjectAcConnection {
+			bindPrefix: root.serviceUid + "/Ac/PvOnGenset"
+		}
+
+		readonly property ObjectAcConnection pvOnOutput: ObjectAcConnection {
+			bindPrefix: root.serviceUid + "/Ac/PvOnOutput"
 		}
 
 		readonly property VeQuickItem _dcPvPower: VeQuickItem {
@@ -130,63 +232,56 @@ QtObject {
 			uid: root.serviceUid + "/Dc/Pv/Current"
 		}
 
-		readonly property Connections _pvMonitorConnection: Connections {
-			target: solarData._pvMonitor
-			function onTotalPowerChanged() {
-				solarData._refresh()
-			}
-			function onTotalCurrentChanged() {
-				solarData._refresh()
-			}
-			function onVoltageChanged() {
-				solarData._refresh()
-			}
+		readonly property Connections _pvOnGridConnection: Connections {
+			target: solarData.pvOnGrid
+			function onPowerChanged() { solarData._refresh() }
+			function onCurrentChanged() { solarData._refresh() }
+			function onVoltageChanged() { solarData._refresh() }
+			function onHasPowerChanged() { solarData._refresh() }
+		}
+
+		readonly property Connections _pvOnGensetConnection: Connections {
+			target: solarData.pvOnGenset
+			function onPowerChanged() { solarData._refresh() }
+			function onCurrentChanged() { solarData._refresh() }
+			function onVoltageChanged() { solarData._refresh() }
+			function onHasPowerChanged() { solarData._refresh() }
+		}
+
+		readonly property Connections _pvOnOutputConnection: Connections {
+			target: solarData.pvOnOutput
+			function onPowerChanged() { solarData._refresh() }
+			function onCurrentChanged() { solarData._refresh() }
+			function onVoltageChanged() { solarData._refresh() }
+			function onHasPowerChanged() { solarData._refresh() }
 		}
 
 		readonly property Connections _dcPvPowerConnection: Connections {
 			target: solarData._dcPvPower
-			function onValueChanged() {
-				solarData._refresh()
-			}
-			function onValidChanged() {
-				solarData._refresh()
-			}
+			function onValueChanged() { solarData._refresh() }
+			function onValidChanged() { solarData._refresh() }
 		}
 
 		readonly property Connections _dcPvCurrentConnection: Connections {
 			target: solarData._dcPvCurrent
-			function onValueChanged() {
-				solarData._refresh()
-			}
-			function onValidChanged() {
-				solarData._refresh()
-			}
+			function onValueChanged() { solarData._refresh() }
+			function onValidChanged() { solarData._refresh() }
 		}
 
 		readonly property Connections _maximumPowerConnection: Connections {
 			target: solarData._maximumPower
-			function onValueChanged() {
-				solarData._refresh()
-			}
-			function onValidChanged() {
-				solarData._refresh()
-			}
+			function onValueChanged() { solarData._refresh() }
+			function onValidChanged() { solarData._refresh() }
 		}
 
 		readonly property Timer _refreshTimer: Timer {
 			interval: 1000
 			repeat: true
 			running: BackendConnection.applicationVisible
-			onTriggered: {
-				solarData._pvMonitor._updateAcTotals()
-				solarData._refresh()
-			}
+			onTriggered: solarData._refresh()
 		}
 
-		Component.onCompleted: {
-			_pvMonitor._updateAcTotals()
-			_refresh()
-		}
+		Component.onCompleted: _refresh()
 	}
 
 	readonly property QtObject veBus: QtObject {
