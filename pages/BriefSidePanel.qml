@@ -103,8 +103,8 @@ ColumnLayout {
 			model: Global.graphHistory ? Global.graphHistory.batteryModel : []
 			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 			animationEnabled: root.animationEnabled
-			aboveThresholdFillColor: Theme.color_blue
-			belowThresholdFillColor: Theme.color_green
+			aboveThresholdFillColor: Theme.color_green
+			belowThresholdFillColor: Theme.color_red
 			initialModelValue: Global.graphHistory ? Global.graphHistory.batteryInitialModelValue : 0.5
 			zeroCentered: true
 			threshold: Global.graphHistory ? Global.graphHistory.batteryThreshold : 0.5
@@ -221,7 +221,7 @@ ColumnLayout {
 			model: Global.graphHistory ? Global.graphHistory.acInputModel : []
 			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 			animationEnabled: root.animationEnabled
-			aboveThresholdFillColor: Theme.color_blue   // warning color is not needed for inputs
+			aboveThresholdFillColor: Theme.color_red
 			belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_blue
 			initialModelValue: Global.graphHistory ? Global.graphHistory.acInputInitialModelValue : 0
 			zeroCentered: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
@@ -301,16 +301,16 @@ ColumnLayout {
 		extraIsAc: true
 		loadersActive: Global.system.hasAcLoads
 		visible: loadersActive
-			sideComponent: LoadGraph {
-				externalSource: true
-				model: Global.graphHistory ? Global.graphHistory.acLoadsModel : []
-				modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
-					animationEnabled: root.animationEnabled
-					threshold: 0
-					zeroCentered: false
-					normalizeToVisibleMaximum: true
-					aboveThresholdFillColor: Theme.color_blue
-				}
+		sideComponent: LoadGraph {
+			externalSource: true
+			model: Global.graphHistory ? Global.graphHistory.acLoadsModel : []
+			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
+			animationEnabled: root.animationEnabled
+			threshold: 0
+			zeroCentered: false
+			normalizeToVisibleMaximum: true
+			aboveThresholdFillColor: Theme.color_green
+		}
 		bottomComponent: ThreePhaseBarGauge {
 			width: parent.width
 			height: root._uniformCurrentGaugeHeight

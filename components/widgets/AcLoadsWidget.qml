@@ -110,7 +110,7 @@ AcWidget {
 			animationEnabled: root.animationEnabled
 			threshold: 0
 			zeroCentered: false
-			aboveThresholdFillColor: Theme.color_blue
+			aboveThresholdFillColor: Theme.color_green
 		}
 	}
 }

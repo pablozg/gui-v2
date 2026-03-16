@@ -97,7 +97,7 @@ AcWidget {
 			model: Global.graphHistory ? Global.graphHistory.acInputModel : []
 			modelLength: Global.graphHistory ? Global.graphHistory.modelLength : 480
 			animationEnabled: root.animationEnabled
-			aboveThresholdFillColor: Theme.color_blue
+			aboveThresholdFillColor: Theme.color_red
 			belowThresholdFillColor: Global.graphHistory && Global.graphHistory.acInputShowsFeedIn ? Theme.color_green : Theme.color_blue
 			initialModelValue: Global.graphHistory ? Global.graphHistory.acInputInitialModelValue : 0
 			zeroCentered: Global.graphHistory ? Global.graphHistory.acInputShowsFeedIn : false
