@@ -36,6 +36,19 @@ function Copy-DirectoryContents {
     }
 }
 
+function Test-IsDeployToGxSourceRoot {
+    param([string]$DirectoryPath)
+
+    $knownTopLevelDirs = @("components", "pages", "data", "themes")
+    foreach ($dirName in $knownTopLevelDirs) {
+        if (Test-Path (Join-Path $DirectoryPath $dirName)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Require-Command {
     param(
         [string]$CommandName,
@@ -123,6 +136,7 @@ $remoteTarPath = "/tmp/gui-v2-complete-deploy.tar.gz"
 $remoteBackupTarPath = "/tmp/gui-v2-existing-installation-backup.tar.gz"
 $remoteStageDir = "/tmp/gui-v2-complete-deploy"
 $gxTargetDir = "/opt/victronenergy/gui-v2"
+$gxGuiTargetDir = "$gxTargetDir/Victron/VenusOS"
 $wasmTargetDir = "/var/www/venus/gui-v2"
 $gxUser = "root"
 
@@ -147,6 +161,7 @@ try {
 	    $gxPayloadDir = Join-Path $payloadRootDir "gx_payload"
 	    $wasmPayloadDir = Join-Path $payloadRootDir "wasm_payload"
         $windowsToolsPayloadDir = Join-Path $payloadRootDir "tools\windows"
+        $payloadRootDirForTar = $payloadRootDir
 
     if (-not (Test-Path -LiteralPath $gxPayloadDir)) {
         throw "El paquete no contiene gx_payload."
@@ -155,6 +170,26 @@ try {
     if (-not (Test-Path -LiteralPath $wasmPayloadDir)) {
         throw "El paquete no contiene wasm_payload."
     }
+
+        $gxPayloadLooksLikeFullRoot = (Test-Path (Join-Path $gxPayloadDir "Victron\VenusOS")) -or (Test-Path (Join-Path $gxPayloadDir "venus-gui-v2"))
+        $gxPayloadIsDeployToGxSource = Test-IsDeployToGxSourceRoot -DirectoryPath $gxPayloadDir
+        if (-not $gxPayloadLooksLikeFullRoot -and $gxPayloadIsDeployToGxSource) {
+            $payloadRootDirForTar = Join-Path $workDir "normalized-package"
+            $normalizedGxPayloadDir = Join-Path $payloadRootDirForTar "gx_payload\Victron\VenusOS"
+            $normalizedWasmPayloadDir = Join-Path $payloadRootDirForTar "wasm_payload"
+
+            Write-Host "Normalizando payload GX al destino $gxGuiTargetDir..." -ForegroundColor Yellow
+            New-Item -ItemType Directory -Path $payloadRootDirForTar, $normalizedGxPayloadDir, $normalizedWasmPayloadDir -Force | Out-Null
+            Copy-DirectoryContents -SourceDir $gxPayloadDir -DestinationDir $normalizedGxPayloadDir
+            Copy-DirectoryContents -SourceDir $wasmPayloadDir -DestinationDir $normalizedWasmPayloadDir
+
+            foreach ($optionalFile in @("manifest.json", "README.txt")) {
+                $optionalSourcePath = Join-Path $payloadRootDir $optionalFile
+                if (Test-Path -LiteralPath $optionalSourcePath) {
+                    Copy-Item -LiteralPath $optionalSourcePath -Destination (Join-Path $payloadRootDirForTar $optionalFile) -Force
+                }
+            }
+        }
 
 	    Set-Content -LiteralPath $askpassPath -Value "@echo $Password" -Encoding Ascii -NoNewline
 	    $env:SSH_ASKPASS = $askpassPath
@@ -236,6 +271,7 @@ Para restaurarla:
 
 Contenido respaldado:
 - $gxTargetDir
+- $gxGuiTargetDir
 - $wasmTargetDir
 "@
         Set-Content -LiteralPath (Join-Path $backupStageDir "README.txt") -Value $backupReadme -Encoding Ascii
@@ -245,6 +281,7 @@ Contenido respaldado:
             backupOf = @{
                 host = $GxHost
                 gxTargetDir = $gxTargetDir
+                gxGuiTargetDir = $gxGuiTargetDir
                 wasmTargetDir = $wasmTargetDir
             }
         }
@@ -257,15 +294,15 @@ Contenido respaldado:
 	        Write-Host "Copia de seguridad guardada en: $backupZipPath" -ForegroundColor Green
 
         $tarItems = @("gx_payload", "wasm_payload")
-        if (Test-Path -LiteralPath (Join-Path $payloadRootDir "manifest.json")) {
+        if (Test-Path -LiteralPath (Join-Path $payloadRootDirForTar "manifest.json")) {
             $tarItems += "manifest.json"
         }
-        if (Test-Path -LiteralPath (Join-Path $payloadRootDir "README.txt")) {
+        if (Test-Path -LiteralPath (Join-Path $payloadRootDirForTar "README.txt")) {
             $tarItems += "README.txt"
         }
 
         Write-Host "Empaquetando payload para el Cerbo..." -ForegroundColor Yellow
-        Push-Location $payloadRootDir
+        Push-Location $payloadRootDirForTar
         try {
             & $tarExe -czf $tarPath @tarItems
             if ($LASTEXITCODE -ne 0) {
@@ -313,6 +350,7 @@ Contenido respaldado:
 	    Write-Host "Despliegue completado correctamente." -ForegroundColor Green
         Write-Host "  Backup:    $backupZipPath"
 	    Write-Host "  GX local:  $gxTargetDir"
+	    Write-Host "  GX GUI:    $gxGuiTargetDir"
 	    Write-Host "  WASM web:  $wasmTargetDir"
 }
 finally {

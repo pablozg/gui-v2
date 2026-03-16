@@ -34,6 +34,19 @@ function Get-CandidateDirectories {
     return $directories
 }
 
+function Test-IsDeployToGxSourceRoot {
+    param([string]$DirectoryPath)
+
+    $knownTopLevelDirs = @("components", "pages", "data", "themes")
+    foreach ($dirName in $knownTopLevelDirs) {
+        if (Test-Path (Join-Path $DirectoryPath $dirName)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Find-GxPayloadRoot {
     param([string]$SearchRoot)
 
@@ -44,8 +57,17 @@ function Find-GxPayloadRoot {
 
         if (($hasVictronTree -and $hasBinary) -or ($hasVictronTree -and $hasGlobalQml)) {
             [PSCustomObject]@{
+                Priority = 0
                 Score = $directory.FullName.Length
                 Path = $directory.FullName
+                Mode = "FullGxRoot"
+            }
+        } elseif (Test-IsDeployToGxSourceRoot -DirectoryPath $directory.FullName) {
+            [PSCustomObject]@{
+                Priority = 1
+                Score = $directory.FullName.Length
+                Path = $directory.FullName
+                Mode = "DeployToGxSource"
             }
         }
     }
@@ -54,7 +76,7 @@ function Find-GxPayloadRoot {
         throw "No se ha podido localizar el contenido GX dentro de '$SearchRoot'."
     }
 
-    return ($candidates | Sort-Object Score | Select-Object -First 1).Path
+    return $candidates | Sort-Object Priority, Score | Select-Object -First 1
 }
 
 function Find-WasmPayloadRoot {
@@ -91,6 +113,21 @@ function Copy-DirectoryContents {
     foreach ($item in Get-ChildItem -LiteralPath $SourceDir -Force) {
         Copy-Item -LiteralPath $item.FullName -Destination $DestinationDir -Recurse -Force
     }
+}
+
+function Stage-GxPayload {
+    param(
+        [psobject]$PayloadDescriptor,
+        [string]$DestinationDir
+    )
+
+    if ($PayloadDescriptor.Mode -eq "DeployToGxSource") {
+        $venusOsDestinationDir = Join-Path $DestinationDir "Victron\VenusOS"
+        Copy-DirectoryContents -SourceDir $PayloadDescriptor.Path -DestinationDir $venusOsDestinationDir
+        return
+    }
+
+    Copy-DirectoryContents -SourceDir $PayloadDescriptor.Path -DestinationDir $DestinationDir
 }
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -138,13 +175,13 @@ try {
     Write-Host "Extrayendo artefacto WASM..." -ForegroundColor Yellow
     Expand-Archive -LiteralPath $wasmZipPath -DestinationPath $wasmExtractDir -Force
 
-    $gxRoot = Find-GxPayloadRoot -SearchRoot $gxExtractDir
+    $gxPayload = Find-GxPayloadRoot -SearchRoot $gxExtractDir
     $wasmRoot = Find-WasmPayloadRoot -SearchRoot $wasmExtractDir
 
-    Write-Host "Raiz GX detectada: $gxRoot" -ForegroundColor DarkGray
+    Write-Host "Raiz GX detectada: $($gxPayload.Path) [$($gxPayload.Mode)]" -ForegroundColor DarkGray
     Write-Host "Raiz WASM detectada: $wasmRoot" -ForegroundColor DarkGray
 
-    Copy-DirectoryContents -SourceDir $gxRoot -DestinationDir $gxPayloadDir
+    Stage-GxPayload -PayloadDescriptor $gxPayload -DestinationDir $gxPayloadDir
     Copy-DirectoryContents -SourceDir $wasmRoot -DestinationDir $wasmPayloadDir
 
     $gxFileCount = @(Get-ChildItem -LiteralPath $gxPayloadDir -File -Recurse).Count
@@ -188,7 +225,8 @@ Opcion B: extrayendo el zip
 3. El instalador te pedira la IP/hostname y la password root del Cerbo.
 
 Este paquete despliega:
-- Binario GX y archivos locales en /opt/victronenergy/gui-v2/
+- Binario GX y estructura principal en /opt/victronenergy/gui-v2/
+- Archivos de GUI GX en /opt/victronenergy/gui-v2/Victron/VenusOS/
 - Build WASM en /var/www/venus/gui-v2/
 - Antes de sobrescribir nada, crea un zip de backup restaurable en esta misma carpeta.
 
@@ -206,6 +244,7 @@ Compatibilidad Windows 10/11:
             wasmZip = [System.IO.Path]::GetFileName($wasmZipPath)
         }
         payload = @{
+            gxLayout = $gxPayload.Mode
             gxFiles = $gxFileCount
             wasmFiles = $wasmFileCount
         }

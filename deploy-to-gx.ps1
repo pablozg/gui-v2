@@ -50,9 +50,13 @@ $committed = @(git diff --name-only origin/main HEAD 2>$null)
 $uncommitted = @(git diff --name-only HEAD 2>$null)
 $allChanged = @($committed) + @($uncommitted)
 
-# Deduplicate and filter: only QML and JS files under components/, pages/, data/
+# Deduplicate and filter: QML/JS files under components/, pages/, data/ or root,
+# plus JSON theme files under themes/
 [string[]]$Files = @($allChanged | Sort-Object -Unique | Where-Object {
-    $_ -and ($_ -match '\.(qml|js)$') -and ($_ -match '^(components|pages|data)/')
+    $_ -and (
+        (($_ -match '\.(qml|js)$') -and ($_ -match '^(components|pages|data)/|^[^/]+$')) -or
+        (($_ -match '\.json$') -and ($_ -match '^themes/'))
+    )
 })
 
 if ($Files.Count -eq 0) {

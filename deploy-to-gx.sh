@@ -47,12 +47,12 @@ export SSHPASS="$(cat "$PW_FILE" | tr -d '\\n')"
 SSH="sshpass -e ssh -o StrictHostKeyChecking=no"
 SCP="sshpass -e scp -o StrictHostKeyChecking=no"
 
-# Auto-detect modified QML/JS files vs origin/main (committed + uncommitted)
+# Auto-detect modified QML/JS/JSON files vs origin/main (committed + uncommitted)
 mapfile -t FILES < <(
     {
         git diff --name-only origin/main HEAD 2>/dev/null
         git diff --name-only HEAD 2>/dev/null
-    } | sort -u | grep -E '\.(qml|js)$' | grep -E '^(components|pages|data)/'
+    } | sort -u | grep -E '\.(qml|js|json)$' | grep -E '^(components|pages|data|themes)/|^[^/]+\.(qml|js)$'
 )
 
 if [ ${#FILES[@]} -eq 0 ]; then
