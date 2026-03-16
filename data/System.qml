@@ -277,7 +277,10 @@ QtObject {
 		readonly property Timer _refreshTimer: Timer {
 			interval: 1000
 			repeat: true
+			// On DBus the source objects already drive refreshes via change signals, so avoid
+			// doing the same aggregation work again every second on the GX device.
 			running: BackendConnection.applicationVisible
+					&& BackendConnection.type === BackendConnection.MqttSource
 			onTriggered: solarData._refresh()
 		}
 

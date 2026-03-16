@@ -66,11 +66,12 @@ Item {
 				width: parent.width - (index*_stepSize)
 				height: width
 				anchors.centerIn: parent
-				sourceComponent: model.tankType === VenusOS.Tank_Type_Battery ? shinyProgressArc : progressArc
+				sourceComponent: model.tankType === VenusOS.Tank_Type_Battery ? segmentedBatteryArc : progressArc
 				onStatusChanged: if (status === Loader.Error) console.warn("Unable to load circular multi gauge progress arc:", errorString())
 
 				Component {
-					id: shinyProgressArc
+					id: segmentedBatteryArc
+
 					Item {
 						id: batteryArc
 						width: loader.width

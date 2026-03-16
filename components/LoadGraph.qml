@@ -26,6 +26,9 @@ Item {
 	property bool trimLeadingInitialValues: false
 	property bool animationEnabled: true
 	property int modelLength: Theme.animation_loadGraph_model_length
+	// Keep the full history in memory, but render fewer points on GX to match the
+	// original graph complexity more closely.
+	property int displayPointCount: Global.isGxDevice ? 24 : modelLength
 	property bool externalSource: false
 
 	readonly property var _displayedModel: _displayModel(model)
@@ -75,7 +78,7 @@ Item {
 		}
 
 		if (!normalizeToVisibleMaximum || zeroCentered) {
-			return _transformDisplayedModel(normalized)
+			return _downsampleDisplayedModel(_transformDisplayedModel(normalized))
 		}
 
 		let maxValue = 0
@@ -87,12 +90,12 @@ Item {
 		}
 
 		if (!(maxValue > 0)) {
-			return _transformDisplayedModel(normalized)
+			return _downsampleDisplayedModel(_transformDisplayedModel(normalized))
 		}
 
-		return _transformDisplayedModel(normalized.map(function(value) {
+		return _downsampleDisplayedModel(_transformDisplayedModel(normalized.map(function(value) {
 			return isNaN(value) ? initialModelValue : Math.min(value / maxValue, 1)
-		}))
+		})))
 	}
 
 	function _transformDisplayedModel(values) {
@@ -102,6 +105,37 @@ Item {
 		return values.map(function(value) {
 			return isNaN(value) ? initialModelValue : 1 - value
 		})
+	}
+
+	function _downsampleDisplayedModel(values) {
+		if (!Array.isArray(values) || values.length <= 2) {
+			return values
+		}
+
+		const targetCount = Math.max(2, Math.min(displayPointCount, values.length))
+		if (targetCount >= values.length) {
+			return values
+		}
+
+		const step = values.length / targetCount
+		const downsampled = []
+		for (let i = 0; i < targetCount; ++i) {
+			const start = Math.floor(i * step)
+			const end = i === targetCount - 1
+					? values.length
+					: Math.max(start + 1, Math.floor((i + 1) * step))
+			let sum = 0
+			let count = 0
+			for (let j = start; j < end; ++j) {
+				const value = values[j]
+				if (!isNaN(value)) {
+					sum += value
+					count++
+				}
+			}
+			downsampled.push(count > 0 ? sum / count : initialModelValue)
+		}
+		return downsampled
 	}
 
 	clip: true
