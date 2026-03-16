@@ -18,6 +18,7 @@ Item {
 	property int startOffsetY
 	property int endOffsetY
 	property int midpointOffsetX
+	property real midpointAbsoluteX: NaN
 	property int straighten: VenusOS.WidgetConnector_Straighten_None
 
 	property int animationMode: VenusOS.WidgetConnector_AnimationMode_NotAnimated
@@ -195,6 +196,7 @@ Item {
 		}
 
 		midpointOffsetX: root.midpointOffsetX
+		midpointAbsoluteX: root.midpointAbsoluteX
 
 		Shape {
 			id: connectorShape

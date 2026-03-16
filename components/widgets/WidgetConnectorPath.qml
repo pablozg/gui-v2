@@ -32,6 +32,7 @@ Item {
 	property real compactYDistance
 	property real expandedYDistance
 	property real midpointOffsetX
+	property real midpointAbsoluteX
 	property real _midpointX
 	readonly property real _midpointY: yDistance / 2
 
@@ -43,7 +44,9 @@ Item {
 
 	function reloadPathLayout() {
 		xDistance = endAnchorX - startAnchorX
-		_midpointX = (xDistance / 2) + midpointOffsetX
+		_midpointX = isNaN(midpointAbsoluteX)
+				? (xDistance / 2) + midpointOffsetX
+				: midpointAbsoluteX - startAnchorX
 
 		compactYDistance = endAnchorCompactY - startAnchorCompactY
 		expandedYDistance = endAnchorExpandedY - startAnchorExpandedY
@@ -73,15 +76,12 @@ Item {
 		PathArc {
 			id: endArc
 
-			// If start/end X are the same and the midpointOffsetX is set, this means the path
-			// travels out and back to the same X position (e.g. when connecting the AC loads widget
-			// to the EVCS widget). In this case, reverse the relativeX to draw back to the original
-			// x position, and use the same arc direction as for the startArc.
-			relativeX: startAnchorX === endAnchorX && midpointOffsetX !== 0 ? -startArc.x : startArc.x
+			// Allow the midpoint to be moved while still finishing exactly at the end anchor.
+			relativeX: xDistance - startArc.x
 			relativeY: startArc.y
 			radiusX: startArc.radiusX
 			radiusY: startArc.radiusY
-			direction: startAnchorX === endAnchorX && midpointOffsetX !== 0
+			direction: startAnchorX === endAnchorX && (midpointOffsetX !== 0 || !isNaN(midpointAbsoluteX))
 					? startArc.direction
 					: (startArc.direction == PathArc.Counterclockwise ? PathArc.Clockwise : PathArc.Counterclockwise)
 		}
