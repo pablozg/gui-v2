@@ -43,6 +43,7 @@ SwipeViewPage {
 	// Do not animate gauge progress changes while the left/right side gauge layouts are changing.
 	on_LeftGaugeCountChanged: pauseLeftGaugeAnimations.restart()
 	on_RightGaugeCountChanged: pauseRightGaugeAnimations.restart()
+	onIsCurrentPageChanged: if (isCurrentPage) pauseCenterGaugeAnimations.restart()
 
 	navButtonText: CommonWords.brief_page
 	navButtonIcon: "qrc:/images/brief.svg"
@@ -66,7 +67,13 @@ SwipeViewPage {
 		height: width
 		x: sidePanel.x/2 - width/2
 		sourceComponent: gaugeModel.count === 0 ? singleGauge : multiGauge
-		onStatusChanged: if (status === Loader.Error) console.warn("Unable to load main gauge")
+		onStatusChanged: {
+			if (status === Loader.Ready) {
+				pauseCenterGaugeAnimations.restart()
+			} else if (status === Loader.Error) {
+				console.warn("Unable to load main gauge")
+			}
+		}
 	}
 
 	Component {
@@ -75,7 +82,7 @@ SwipeViewPage {
 		CircularMultiGauge {
 			id: circularMultiGauge
 			model: gaugeModel
-			animationEnabled: root.animationEnabled
+			animationEnabled: root.animationEnabled && !pauseCenterGaugeAnimations.running
 			labelOpacity: root._gaugeLabelOpacity
 			labelMargin: root._gaugeLabelMargin
 			leftGaugeCount: root._leftGaugeCount
@@ -97,8 +104,10 @@ SwipeViewPage {
 
 			value: visible && !isNaN(battery.stateOfCharge) ? battery.stateOfCharge : 0
 			status: Theme.getValueStatus(value, properties.valueType)
-			animationEnabled: root.animationEnabled
-			shineAnimationEnabled: battery.mode === VenusOS.Battery_Mode_Charging && root.animationEnabled
+			animationEnabled: root.animationEnabled && !pauseCenterGaugeAnimations.running
+			shineAnimationEnabled: battery.mode === VenusOS.Battery_Mode_Charging
+					&& root.animationEnabled
+					&& !pauseCenterGaugeAnimations.running
 
 			BriefCenterDisplay {
 				anchors.centerIn: parent
@@ -366,6 +375,19 @@ SwipeViewPage {
 	Timer {
 		id: pauseRightGaugeAnimations
 		interval: Theme.animation_progressArc_duration
+	}
+
+	Timer {
+		id: pauseCenterGaugeAnimations
+		interval: Theme.animation_progressArc_duration
+	}
+
+	Connections {
+		target: gaugeModel
+
+		function onCountChanged() {
+			pauseCenterGaugeAnimations.restart()
+		}
 	}
 
 	Loader {

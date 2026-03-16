@@ -122,6 +122,7 @@ Item {
 								visible: batteryArc._progressFraction > startFraction
 
 								Arc {
+									animationEnabled: batteryArc.animationEnabled
 									radius: batteryArc.radius
 									startAngle: batteryArc._angleForFraction(startFraction)
 									endAngle: batteryArc._angleForFraction(clampedEndFraction)
