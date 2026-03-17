@@ -668,17 +668,49 @@ SwipeViewPage {
 		lowerLimit: 50
 	}
 
+	Rectangle {
+		id: animationWakeLock
+
+		anchors {
+			top: parent.top
+			left: parent.left
+		}
+		width: 1
+		height: 1
+		z: -1
+		color: Theme.color_page_background
+		opacity: 0.0
+
+		// Keep a tiny render-thread animation active on GX so the overview frame loop
+		// does not go idle while connector animations are visible.
+		property bool keepAliveRunning: Global.isGxDevice && root.animationEnabled && !overviewPageRootAnimation.paused
+		onKeepAliveRunningChanged: if (!keepAliveRunning) opacity = 0.0
+
+		NumberAnimation on opacity {
+			running: animationWakeLock.keepAliveRunning
+			loops: Animation.Infinite
+			from: 0.0
+			to: 0.01
+			duration: 1000
+			easing.type: Easing.Linear
+		}
+	}
+
 	FrameAnimation {
 		id: overviewPageRootAnimation
 
 		paused: cpuInfo.overLimit
 		running: root.animationEnabled
-		property real previousElapsed
+		property real previousElapsed: 0
 
 		// Limit the frame rate of widget connector animations
 		// to ~15fps on GX products
-		property real animationElapsed
-		onTriggered: if (!Global.isGxDevice || (currentFrame % 4 === 0)) animationElapsed = elapsedTime
+		property real animationElapsed: 0
+		onTriggered: {
+			if (!Global.isGxDevice || (currentFrame % 4 === 0)) {
+				animationElapsed = previousElapsed + elapsedTime
+			}
+		}
 
 		onRunningChanged: {
 			if (!running) {

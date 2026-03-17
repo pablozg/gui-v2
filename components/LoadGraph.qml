@@ -204,7 +204,7 @@ Item {
 			spacing: Global.isGxDevice ? dotSize * 2 : dotSize
 
 			Repeater {
-				model: dottedLine.width / (dotSize + dottedLine.spacing)
+				model: Math.max(0, Math.floor(dottedLine.width / Math.max(1, dotSize + dottedLine.spacing)))
 				delegate: Rectangle {
 					implicitWidth: dotSize
 					implicitHeight: dotSize
