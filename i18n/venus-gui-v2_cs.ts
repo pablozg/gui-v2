@@ -8551,7 +8551,7 @@ Pokud je generátor v současné době spuštěn na základě podmínky autostar
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Stručný popis (otevřený boční panel)</translation>
+      <translation>Krátce (otevřený boční panel)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>

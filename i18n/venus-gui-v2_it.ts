@@ -8547,7 +8547,7 @@ Se il generatore è in funzione in seguito a una condizione di avvio automatico,
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Sintesi (pannello laterale aperto)</translation>
+      <translation>Breve (pannello laterale aperto)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>

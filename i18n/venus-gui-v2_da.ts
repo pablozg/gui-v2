@@ -8551,7 +8551,7 @@ Hvis generatoren i øjeblikket kører på grund af en autostart-tilstand, vil de
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Trusse (åbent sidepanel)</translation>
+      <translation>Kort (åbent sidepanel)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>

@@ -8550,7 +8550,7 @@ Jeneratör otomatik başlatma koşulu nedeniyle çalışıyorsa otomatik başlat
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Brief (yan panel açık)</translation>
+      <translation>Kısa (yan panel açık)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>

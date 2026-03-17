@@ -8551,7 +8551,7 @@ Jeśli generator jest teraz uruchomiony z powodu warunków autostartu, wyłącze
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Skrót (panel boczny otwarty)</translation>
+      <translation>Krótko (panel boczny otwarty)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>

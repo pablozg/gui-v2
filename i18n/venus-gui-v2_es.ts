@@ -8549,7 +8549,7 @@ If el generador está funcionando en este momento por una condición de arranque
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Resumen (panel lateral abierto)</translation>
+      <translation>Breve (Panel Lateral Abierto)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>

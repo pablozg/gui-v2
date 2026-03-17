@@ -8550,7 +8550,7 @@ Si le générateur est en cours de fonctionnement en raison d'une condition de d
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Slip (panneau latéral ouvert)</translation>
+      <translation>En bref (panneau latéral ouvert)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>

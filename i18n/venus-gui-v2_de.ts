@@ -8550,7 +8550,7 @@ Wenn der Generator derzeit aufgrund einer Autostart-Bedingung läuft, wird er du
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Brief (Seitenwand offen)</translation>
+      <translation>Kurzansicht (Seitenpanel geöffnet)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>

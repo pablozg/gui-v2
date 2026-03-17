@@ -8551,7 +8551,7 @@ If the generator is currently running due to a autostart condition, disabling au
       <location filename="../../data/StartPageConfiguration.qml" line="31"/>
       <source>Brief (side panel open)</source>
       <extracomment>The 'Brief' page, with the side panel opened</extracomment>
-      <translation>Брифинг (боковая стенка открыта)</translation>
+      <translation>Кратко (боковая панель открыта)</translation>
     </message>
     <message id="startpage_option_overview">
       <location filename="../../data/StartPageConfiguration.qml" line="37"/>
