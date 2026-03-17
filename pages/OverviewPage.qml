@@ -676,10 +676,9 @@ SwipeViewPage {
 		property real previousElapsed
 
 		// Limit the frame rate of widget connector animations
-		// to 20fps on the GX products
-		property bool limitFps: Global.isGxDevice
+		// to ~15fps on GX products
 		property real animationElapsed
-		onTriggered: if (!limitFps || (currentFrame % 3 == 0)) animationElapsed = elapsedTime
+		onTriggered: if (!Global.isGxDevice || (currentFrame % 4 === 0)) animationElapsed = elapsedTime
 
 		onRunningChanged: {
 			if (!running) {

@@ -82,22 +82,21 @@ Item {
 						property real value: loader.level
 						property real strokeWidth: gauges.strokeWidth
 						property bool animationEnabled: gauges.animationEnabled
-						property bool shineAnimationEnabled: Global.system.battery.mode === VenusOS.Battery_Mode_Charging
 						readonly property real _sweepAngle: Math.max(Math.abs(endAngle - startAngle), 0.01)
-						readonly property real _angleDirection: endAngle >= startAngle ? 1 : -1
 						readonly property real _progressFraction: Math.min(Math.max(value, 0.0), 100.0) / 100.0
-						readonly property int _segmentCount: Math.max(18, Math.ceil(_sweepAngle / 10))
+
+						// 10 gradient segments — smooth gradient with ~63% fewer Shape nodes than original
+						readonly property int _segCount: 10
+						readonly property real _segStep: 1.0 / _segCount
 
 						function _angleForFraction(fraction) {
-							const t = Math.max(0, Math.min(fraction, 1))
-							return startAngle + (_angleDirection * _sweepAngle * t)
+							return startAngle + _sweepAngle * Math.max(0, Math.min(fraction, 1))
 						}
 
+						// Track (background)
 						Shape {
-							x: 0
-							y: 0
-							width: loader.width
-							height: loader.height
+							width: batteryArc.width
+							height: batteryArc.height
 
 							Arc {
 								radius: batteryArc.radius
@@ -109,27 +108,35 @@ Item {
 							}
 						}
 
-						Repeater {
-							model: batteryArc._segmentCount
-							delegate: Shape {
-								required property int index
-								readonly property real startFraction: index / batteryArc._segmentCount
-								readonly property real endFraction: (index + 1) / batteryArc._segmentCount
-								readonly property real clampedEndFraction: Math.min(endFraction, batteryArc._progressFraction)
-								x: 0
-								y: 0
-								width: loader.width
-								height: loader.height
-								visible: batteryArc._progressFraction > startFraction
+						// Gradient progress — cached as texture, re-rendered only when SOC changes
+						Item {
+							width: batteryArc.width
+							height: batteryArc.height
+							visible: batteryArc._progressFraction > 0
+							layer.enabled: true
+							layer.smooth: true
 
-								Arc {
-									animationEnabled: batteryArc.animationEnabled
-									radius: batteryArc.radius
-									startAngle: batteryArc._angleForFraction(startFraction)
-									endAngle: batteryArc._angleForFraction(clampedEndFraction)
-									strokeWidth: batteryArc.strokeWidth
-									strokeColor: gauges._gradientColorAt((startFraction + endFraction) / 2)
-									fillColor: "transparent"
+							Repeater {
+								model: batteryArc._segCount
+								delegate: Shape {
+									required property int index
+									readonly property real segStart: index * batteryArc._segStep
+									readonly property real segEnd: (index + 1) * batteryArc._segStep
+									width: batteryArc.width
+									height: batteryArc.height
+									visible: batteryArc._progressFraction > segStart
+
+									Arc {
+										animationEnabled: batteryArc.animationEnabled
+										radius: batteryArc.radius
+										startAngle: batteryArc._angleForFraction(segStart)
+										endAngle: batteryArc._progressFraction > segStart
+											? batteryArc._angleForFraction(Math.min(segEnd, batteryArc._progressFraction))
+											: batteryArc._angleForFraction(segStart)
+										strokeWidth: batteryArc.strokeWidth
+										strokeColor: gauges._gradientColorAt((segStart + segEnd) / 2)
+										fillColor: "transparent"
+									}
 								}
 							}
 						}

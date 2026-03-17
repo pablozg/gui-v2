@@ -57,10 +57,14 @@ Item {
 		}
 
 		// Sets the distance between electrons (i.e. how often to spawn a new electron)
-		// Use a min value to ensure at least one electron is shown for short connectors
-		const electronTravelDistance = Math.max(Theme.geometry_overviewPage_connector_electron_interval, _electronTravelDistance)
+		// Use a min value to ensure at least one electron is shown for short connectors.
+		// On GX devices, double the interval to halve the number of electrons (~50% fewer path calculations).
+		const interval = Global.isGxDevice
+			? Theme.geometry_overviewPage_connector_electron_interval * 2
+			: Theme.geometry_overviewPage_connector_electron_interval
+		const electronTravelDistance = Math.max(interval, _electronTravelDistance)
 		const modelCount = animationEnabled
-			? Math.floor(electronTravelDistance / Theme.geometry_overviewPage_connector_electron_interval)
+			? Math.max(1, Math.floor(electronTravelDistance / interval))
 			: 1 // show just one arrow, if animations are disabled.
 
 		if (electronRepeater.count !== modelCount) {

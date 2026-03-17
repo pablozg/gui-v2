@@ -333,7 +333,7 @@
     "geometry_overviewPage_connector_line_width": 2,
     "geometry_overviewPage_connector_electron_velocity": 30,
     "geometry_overviewPage_connector_electron_interval": 34,
-    "geometry_overviewPage_connector_animationPowerThreshold": 30,
+    "geometry_overviewPage_connector_animationPowerThreshold": 0,
     "geometry_overviewPage_connector_anchor_width": 6,
     "geometry_overviewPage_connector_anchor_height": 12,
     "geometry_overviewPage_connector_anchor_spacing": 4,

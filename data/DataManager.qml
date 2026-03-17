@@ -149,6 +149,87 @@ Item {
 				graphHistory[channelName] = temp
 			}
 
+			// Recalculate dynamic maximums from the current 2-hour data window.
+			// When old high-value points shift out, this shrinks the range so
+			// the graph always fills the available height.
+			function _recalcDynMaxChannel(channelName, dynMaxProp) {
+				var currentMax = graphHistory[dynMaxProp]
+				if (isNaN(currentMax) || currentMax <= 0) return
+				var model = _normalizedModel(graphHistory[channelName], channelName)
+				var maxRatio = 0
+				for (var i = 0; i < model.length; ++i) {
+					if (model[i] > maxRatio) maxRatio = model[i]
+				}
+				if (maxRatio <= 0 || maxRatio >= 0.99) return
+				var newMax = maxRatio * currentMax
+				for (var i = 0; i < model.length; ++i) {
+					model[i] = model[i] / maxRatio
+				}
+				graphHistory[channelName] = model
+				graphHistory[dynMaxProp] = newMax
+			}
+
+			function _recalcBatteryRange() {
+				if (_batteryPrevGraphMin === 0 && _batteryPrevGraphMax === 0) return
+				var model = _normalizedModel(graphHistory.batteryModel, "batteryModel")
+				var maxAbsPower = 0
+				for (var i = 0; i < model.length; ++i) {
+					var ratio = model[i]
+					if (Math.abs(ratio - batteryInitialModelValue) < 0.0001) continue
+					var power = FastUtils.scaleNumber(ratio, 0, 1, _batteryPrevGraphMin, _batteryPrevGraphMax)
+					var absPower = Math.abs(power)
+					if (absPower > maxAbsPower) maxAbsPower = absPower
+				}
+				var currentAbsLimit = Math.max(Math.abs(_batteryPrevGraphMin), _batteryPrevGraphMax)
+				if (maxAbsPower <= 0 || maxAbsPower >= 0.99 * currentAbsLimit) return
+				var newMin = -maxAbsPower
+				var newMax = maxAbsPower
+				_rescaleHistoricalData("batteryModel", _batteryPrevGraphMin, _batteryPrevGraphMax, newMin, newMax)
+				_batteryPrevGraphMin = newMin
+				_batteryPrevGraphMax = newMax
+			}
+
+			function _recalcAcInputRange() {
+				if (_acPrevGraphMin === 0 && _acPrevGraphMax === 0) return
+				var model = _normalizedModel(graphHistory.acInputModel, "acInputModel")
+				if (acInputShowsFeedIn) {
+					var maxAbsPower = 0
+					for (var i = 0; i < model.length; ++i) {
+						var ratio = model[i]
+						if (Math.abs(ratio - acInputInitialModelValue) < 0.0001) continue
+						var power = FastUtils.scaleNumber(ratio, 0, 1, _acPrevGraphMin, _acPrevGraphMax)
+						var absPower = Math.abs(power)
+						if (absPower > maxAbsPower) maxAbsPower = absPower
+					}
+					var currentAbsLimit = Math.max(Math.abs(_acPrevGraphMin), _acPrevGraphMax)
+					if (maxAbsPower <= 0 || maxAbsPower >= 0.99 * currentAbsLimit) return
+					_rescaleHistoricalData("acInputModel", _acPrevGraphMin, _acPrevGraphMax, -maxAbsPower, maxAbsPower)
+					_acPrevGraphMin = -maxAbsPower
+					_acPrevGraphMax = maxAbsPower
+				} else {
+					var maxRatio = 0
+					for (var i = 0; i < model.length; ++i) {
+						if (model[i] > maxRatio) maxRatio = model[i]
+					}
+					if (maxRatio <= 0 || maxRatio >= 0.99 || _acPrevGraphMax <= 0) return
+					var newMax = maxRatio * _acPrevGraphMax
+					for (var i = 0; i < model.length; ++i) {
+						model[i] = model[i] / maxRatio
+					}
+					graphHistory.acInputModel = model
+					_acPrevGraphMax = newMax
+				}
+			}
+
+			function _recalcAllRanges() {
+				_recalcDynMaxChannel("solarModel", "_solarDynMax")
+				_recalcDynMaxChannel("dcInputModel", "_dcInputDynMax")
+				_recalcDynMaxChannel("acLoadsModel", "_acLoadDynMax")
+				_recalcDynMaxChannel("dcLoadsModel", "_dcLoadDynMax")
+				_recalcBatteryRange()
+				_recalcAcInputRange()
+			}
+
 				property int _solarAcc: 0; property real _solarSum: 0
 				property int _batteryAcc: 0; property real _batterySum: 0
 					property int _acInputAcc: 0; property real _acInputSum: 0
@@ -363,6 +444,7 @@ Item {
 				}
 
 				if (pushedPoint) {
+					_recalcAllRanges()
 					if (!_publishRuntimeAll(false)) {
 						_needsRuntimeSeed = true
 					}

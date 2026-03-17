@@ -247,8 +247,10 @@ OverviewWidget {
 		QuantityLabel {
 			id: batteryCurrentDisplay
 
+			// Center dynamically between voltage and power labels
+			x: batteryVoltageDisplay.x + batteryVoltageDisplay.width
+			   + (batteryPowerDisplay.x - batteryVoltageDisplay.x - batteryVoltageDisplay.width - width) / 2
 			anchors {
-				horizontalCenter: parent.horizontalCenter
 				bottom: parent.bottom
 				bottomMargin: Theme.geometry_overviewPage_widget_battery_bottomRow_bottomMargin
 			}
@@ -263,7 +265,7 @@ OverviewWidget {
 				bottom: batteryPowerDisplay.top
 				bottomMargin: Theme.geometry_overviewPage_batterywidget_renewable_icon_bottom_margin
 				right: parent.right
-				rightMargin: Theme.geometry_overviewPage_batterywidget_renewable_icon_right_margin + root._sideGaugeInset
+				rightMargin: Theme.geometry_overviewPage_batterywidget_renewable_icon_right_margin
 			}
 
 			fillMode: Image.PreserveAspectFit
@@ -277,7 +279,7 @@ OverviewWidget {
 
 			anchors {
 				right: parent.right
-				rightMargin: Theme.geometry_overviewPage_widget_content_horizontalMargin + root._sideGaugeInset
+				rightMargin: 0
 				bottom: parent.bottom
 				bottomMargin: Theme.geometry_overviewPage_widget_battery_bottomRow_bottomMargin
 			}

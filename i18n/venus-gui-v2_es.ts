@@ -113,7 +113,7 @@
     <message id="overview_widget_solaryield_title">
       <location filename="../../components/widgets/SolarYieldWidget.qml" line="26"/>
       <source>Solar yield</source>
-      <translation>Rendimiento solar</translation>
+      <translation>Solar</translation>
     </message>
     <message id="inverters_state_externalccontrol">
       <location filename="../../data/System.qml" line="186"/>
@@ -11463,7 +11463,7 @@ Aquí puede añadir puertos e ID de unidad adicionales para buscar inversores FV
     <message id="brief_solar_yield">
       <location filename="../../pages/BriefSidePanel.qml" line="24"/>
       <source>Solar yield</source>
-      <translation type="unfinished">Rendimiento solar</translation>
+      <translation type="unfinished">Solar</translation>
     </message>
     <message id="brief_dc_input">
       <location filename="../../pages/BriefSidePanel.qml" line="214"/>
