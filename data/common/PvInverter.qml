@@ -29,7 +29,7 @@ Device {
 			delegate: QtObject {
 				id: phaseObject
 				required property int index
-				readonly property string phaseUid: pvInverter.serviceUid + "/Ac/L" + (index + 1)
+				readonly property string phaseUid: pvInverter.serviceUid ? pvInverter.serviceUid + "/Ac/L" + (index + 1) : ""
 
 				readonly property string name: "L" + (index + 1)
 				readonly property real energy: _phaseEnergy.valid ? _phaseEnergy.value : NaN
@@ -46,22 +46,22 @@ Device {
 				}
 
 				readonly property VeQuickItem _phaseEnergy: VeQuickItem {
-					uid: phaseUid + "/Energy/Forward"
+					uid: phaseUid ? phaseUid + "/Energy/Forward" : ""
 					onValidChanged: phaseObject._updatePhaseModel(valid, phaseObject.index, PhaseModel.EnergyRole)
 					onValueChanged: phases.setValue(index, PhaseModel.EnergyRole, value)
 				}
 				readonly property VeQuickItem _phasePower: VeQuickItem {
-					uid: phaseUid + "/Power"
+					uid: phaseUid ? phaseUid + "/Power" : ""
 					onValidChanged: phaseObject._updatePhaseModel(valid, phaseObject.index, PhaseModel.PowerRole)
 					onValueChanged: phases.setValue(index, PhaseModel.PowerRole, value)
 				}
 				readonly property VeQuickItem _phaseCurrent: VeQuickItem {
-					uid: phaseUid + "/Current"
+					uid: phaseUid ? phaseUid + "/Current" : ""
 					onValidChanged: phaseObject._updatePhaseModel(valid, phaseObject.index, PhaseModel.CurrentRole)
 					onValueChanged: phases.setValue(index, PhaseModel.CurrentRole, value)
 				}
 				readonly property VeQuickItem _phaseVoltage: VeQuickItem {
-					uid: phaseUid + "/Voltage"
+					uid: phaseUid ? phaseUid + "/Voltage" : ""
 					onValidChanged: phaseObject._updatePhaseModel(valid, phaseObject.index, PhaseModel.VoltageRole)
 					onValueChanged: phases.setValue(index, PhaseModel.VoltageRole, value)
 				}
@@ -70,18 +70,18 @@ Device {
 	}
 
 	readonly property VeQuickItem _statusCode: VeQuickItem {
-		uid: pvInverter.serviceUid + "/StatusCode"
+		uid: pvInverter.serviceUid ? pvInverter.serviceUid + "/StatusCode" : ""
 	}
 
 	readonly property VeQuickItem _errorCode: VeQuickItem {
-		uid: pvInverter.serviceUid + "/ErrorCode"
+		uid: pvInverter.serviceUid ? pvInverter.serviceUid + "/ErrorCode" : ""
 	}
 
 	readonly property VeQuickItem _energy: VeQuickItem {
-		uid: pvInverter.serviceUid + "/Ac/Energy/Forward"
+		uid: pvInverter.serviceUid ? pvInverter.serviceUid + "/Ac/Energy/Forward" : ""
 	}
 
 	readonly property VeQuickItem _power: VeQuickItem {
-		uid: pvInverter.serviceUid + "/Ac/Power"
+		uid: pvInverter.serviceUid ? pvInverter.serviceUid + "/Ac/Power" : ""
 	}
 }
