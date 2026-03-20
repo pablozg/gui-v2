@@ -5791,7 +5791,7 @@ Czy chcesz kontynuować?</translation>
     <message id="common_words_silence_alarm">
       <location filename="../../components/CommonWords.qml" line="481"/>
       <source>Silence alarm</source>
-      <translation>Wyciszenie alarmu</translation>
+      <translation>Wycisz alarm</translation>
     </message>
     <message id="vebus_device_page_total_power">
       <location filename="../../components/ThreePhaseQuantityTable.qml" line="47"/>

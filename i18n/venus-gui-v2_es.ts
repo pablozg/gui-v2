@@ -5789,7 +5789,7 @@ Cuando se complete el proceso de carga, el sistema volverá al funcionamiento no
     <message id="common_words_silence_alarm">
       <location filename="../../components/CommonWords.qml" line="481"/>
       <source>Silence alarm</source>
-      <translation>Alarma de silencio</translation>
+      <translation>Silenciar alarma</translation>
     </message>
     <message id="vebus_device_page_total_power">
       <location filename="../../components/ThreePhaseQuantityTable.qml" line="47"/>

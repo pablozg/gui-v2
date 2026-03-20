@@ -5789,7 +5789,7 @@ Do you want to continue?</source>
     <message id="common_words_silence_alarm">
       <location filename="../../components/CommonWords.qml" line="481"/>
       <source>Silence alarm</source>
-      <translation>ปลุกเงียบ</translation>
+      <translation>ปิดเสียงเตือน</translation>
     </message>
     <message id="vebus_device_page_total_power">
       <location filename="../../components/ThreePhaseQuantityTable.qml" line="47"/>

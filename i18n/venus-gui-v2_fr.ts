@@ -5790,7 +5790,7 @@ Voulez-vous continuer ?</translation>
     <message id="common_words_silence_alarm">
       <location filename="../../components/CommonWords.qml" line="481"/>
       <source>Silence alarm</source>
-      <translation>Alarme en silencieux</translation>
+      <translation>Couper le son de l'alarme</translation>
     </message>
     <message id="vebus_device_page_total_power">
       <location filename="../../components/ThreePhaseQuantityTable.qml" line="47"/>
